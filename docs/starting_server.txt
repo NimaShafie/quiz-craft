@@ -1,0 +1,14 @@
+# starting server
+flask --app <file_name (no .py)> run
+
+# example to start with a file called hello.py
+flask --app hello run
+
+# if the file is named app.py or wsgi.py, you don’t have to use --app
+
+# make the server publicly available on your network by using
+flask run --host=0.0.0.0
+# This tells your operating system to listen on all public IPs.
+
+# running the server in debug mode, use the flag --debug with run command
+

@@ -1,0 +1,71 @@
+Project Title: Research, Requirement Definition, User Stories, and Prototyping for Quiz Generation
+
+Project Description:
+
+In the "Research, Requirement Definition, User Stories, and Prototyping for Quiz Generation" project, students will focus on the following tasks:
+
+Phase 1: Industry Research and Requirement Discovery:
+
+Industry Research with Algorithm Exploration:
+
+Conduct thorough research to understand existing industry practices and methodologies for quiz generation, with a particular emphasis on the use of algorithms and AI technologies.
+Investigate how algorithms, including TF-IDF, LDA, word embeddings, and named entity recognition (NER), are leveraged within the industry for concept analysis and question generation.
+Explore how advanced AI models like ChatGPT are employed to enhance quiz generation processes.
+Requirement Discovery:
+
+Identify and define the requirements for a quiz generation system, taking into account insights gained from industry research and the utilization of algorithms and AI models.
+User Story Development:
+
+Create detailed user stories that describe the system's functionalities, features, and interactions, incorporating insights from industry practices and the potential use of algorithms and AI models.
+Phase 2: Prototyping and Feasibility Analysis with Algorithm Implementation and Requirement Iteration:
+
+Prototyping and Feasibility Analysis with Algorithm Implementation:
+Develop prototypes of the quiz generation system to assess the feasibility and practicality of the identified requirements, considering both industry standards and project objectives.
+Implement concept analysis algorithms, including TF-IDF, LDA, word embeddings, and NER, within the prototypes to generate relevant quiz questions from the provided text. Evaluate the effectiveness of these algorithms in quiz question generation.
+Explore the integration of advanced AI models like ChatGPT into the prototyping phase to enhance question generation capabilities.
+Iteratively refine and adjust requirements based on feedback from the prototypes, ensuring that they align effectively with project goals and the feasibility of algorithm utilization.
+Phase 3: User Story Refinement, Feasibility Matrix, Traceability Matrix, and Documentation:
+
+User Story Refinement and Feasibility Matrix:
+
+Refine and enhance user stories based on insights gained from both industry research, concept analysis results, feedback from the prototypes, and the potential integration of ChatGPT. Ensure that user stories align effectively with project goals, feasibility, and concept analysis outcomes.
+Develop a feasibility matrix to assess the feasibility of requirements and user stories, considering the utilization of algorithms and AI models.
+Traceability Matrix:
+
+Create a traceability matrix that establishes traceability between requirements, user stories, and project objectives. This matrix ensures that all project elements align cohesively throughout the project lifecycle.
+Iteration and Finalization:
+
+In the final stages, iterate on user stories, making necessary adjustments based on feedback from the prototypes, concept analysis results, and project-specific needs.
+Documentation:
+
+Done via GitLab Issues, please prepare a demo as indicated in the project requirements, including detailed requirements, user stories, insights from industry research (including algorithm utilization), concept analysis findings, outcomes from the prototyping phase, the feasibility matrix, and the traceability matrix.
+===========================================
+
+EPIC
+
+===========================================
+
+The "Auto-Generated Quiz Variants from Classroom Materials" epic centers on the development of a quiz generation system that automates the creation of multiple quiz variants based on the content covered in classroom materials. This epic underscores the automation aspect and its reliance on the classroom content. The epic includes the following key objectives:
+ 
+
+ction, source verification, and automated question generation.
+
+Key Objectives and Components:
+
+Classroom Material Analysis:
+
+Content Consumption: The system will be empowered to autonomously consume classroom materials, including lectures, presentations, and course materials.
+
+Review of Existing Resources: The system will cross-reference the extracted content with an existing database of educational resources, including textbooks, reference materials, and authoritative sources.
+
+Source Authority Verification: Algorithms and criteria will be employed to verify the authority of the sources cited in the classroom materials.
+
+Auto-Generation of Quiz Questions: Based on the extracted content, the system will dynamically generate quiz questions of various types, such as multiple-choice, true/false, and open-ended. The auto-generated questions will be aligned with the topics covered in the classroom materials.
+
+User Story Creation:
+
+Craft detailed user stories that reflect the automated quiz generation process based on classroom materials. User stories should provide a clear understanding of how the system will function in auto-generating quiz variants.
+Metrics for Assessment:
+
+Define and implement metrics to assess the quality and effectiveness of the auto-generated quizzes. Metrics will include quiz accuracy, relevance to classroom content, and the diversity of question types.
+Flexibility and Scalability: Anticipate future needs and ensure that requirements and user stories allow for system scalability and adaptability to evolving industry standards, while still being rooted in the provided content.

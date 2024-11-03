@@ -1,0 +1,67 @@
+Requirements Engineering
+Assignment Overview:
+
+In this project, you will embark on a journey through the world of Requirements Engineering with a focus on utilizing ChatGPT and other innovative technologies and exploring innovative solutions in various domains. The goal is to not only understand existing literature but also gain insights from startups' missions, as well as from prominent companies and emerging trends.
+
+Assignment Phases:
+
+Phase 1: Research and Analysis (2 weeks, October 23)
+
+Literature Review: Begin by conducting thorough research on existing literature related to your chosen theme. Explore academic papers, articles, and books that are relevant to your selected domain. Document key findings and summarize them in  MLA format.
+
+Startup Mission Analysis: Investigate relevant startup websites, big companies' announcements, and emerging trends. Analyze how startups and established companies are addressing similar challenges or opportunities in the field.
+
+In the paper, I expect the following:
+
+References: Include a clear list of references in your paper, comprising no less than 5 academic papers and several startup and company websites. Ensure proper citation according to the MLA.
+
+Goals Definition: Clearly define the goals you aim to accomplish with your proposed solution. Compare these goals with existing solutions (if any) and identify gaps or areas of improvement. The result of this step should become an Epics for the agile prototyping project.
+
+Proposal Presentation: Present your paper and proposed solutions for approval. Be ready to defend your hypothesis and experiment plan.
+MILESTONE: ready paper - INDIVIDUALLY GRADED. Even though you are a group, the research is an individual's responsibility.
+
+Phase 2: Agile Development with UML, TDD, BDD (5 weeks, November 27)
+
+User Stories with Metrics and Research Spikes: Translate your proposed solutions into user stories. Each user story should include clear metrics that align with your experiment's objectives. Additionally, identify any user stories that require further research or clarification through research spikes.
+Example User Story with Research Spike:
+
+User Story: As a [user type], I want [a specific feature] so that [I can achieve a certain outcome].
+Metrics:
+Increase user engagement by 20% within the first month (requires research spike).
+Reduce response time to user queries to less than 2 seconds.
+Research Spike: Investigate user engagement metrics to determine specific parameters and methods for measurement.
+Research Spikes for User Stories and Metrics: Conduct research spikes for both user stories and metrics that require further research or clarification. These research spikes are time-boxed investigations to gather the necessary information to define user stories and metrics accurately. Document the findings and use them to refine your user stories and metrics.
+
+UML Integration: Integrate UML (Unified Modeling Language) into your requirement iterations. Create UML diagrams, such as use case diagrams, class diagrams, and sequence diagrams, to visualize your system architecture, user interactions, and relationships between components. Ensure that these diagrams align with your user stories and requirements.
+
+Prototype Development: Collaboratively develop a prototype based on the user stories, incorporating the metrics and acceptance criteria. Use Agile methodology to plan and execute your development sprints. All code must be stored and managed in a Git Lab repository.
+
+Demonstration and Iteration: Conduct regular demo sessions to showcase the progress and validate whether the user stories, metrics, and acceptance criteria are being met. Iterate on requirements and the prototype as needed based on feedback and insights gained during development.
+
+Change Management: Maintain a change matrix to track and document any changes in requirements throughout the development process. Ensure that any modifications to user stories, metrics, or acceptance criteria are clearly documented and communicated.
+
+Phase 3: Final Presentation and Documentation (2 weeks, December 11)
+
+Final Demo: In the last phase, present your prototype and list the final set of requirements. Showcase how your solution aligns with your initial goals and hypotheses.
+
+Documentation: Prepare a comprehensive documentation report that includes all project phases, from research to the final prototype. This report should serve as a detailed reference for future endeavors in this domain. Include a final list of references, updating it as necessary.
+
+Grading Criteria:
+
+Your paper will be evaluated on  quality of your research, the clarity, and formatting of your English paper
+
+Your project will be evaluated based on the following criteria:
+
+Effectiveness of User Stories: The clarity and completeness of your user stories, including well-defined metrics and acceptance criteria.
+
+Integration of UML in Requirement Iterations: The extent to which UML diagrams are integrated into your requirement iterations and how effectively they communicate system architecture and interactions.
+
+Design and Testing of Hypothesis: Your ability to design and conduct experiments to test your hypothesis. This includes defining meaningful metrics, conducting experiments, and analyzing results.
+
+Documentation of Negative Results: The thoroughness of documenting any negative results or outcomes. Negative results are valuable in research and should be clearly communicated and analyzed.
+
+Change Management: Your ability to effectively manage changes in requirements throughout the project. This includes documenting changes, assessing their impact, and communicating them to the team.
+
+Submission Guidelines:
+
+Submit your research paper via Canvas,  user stories, UML diagrams, prototype code in Git Lab, and a final project documentation report for assessment (as a paper and a presentation) via Canvas

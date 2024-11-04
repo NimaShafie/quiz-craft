@@ -1,0 +1,55 @@
+# prereqs
+# python 3.8 - 3.12 (tested with 3.12.7-win32)
+
+# create env
+python -m venv .venv
+
+# actiavte env
+# Windows command prompt
+.venv\Scripts\activate.bat
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+# macOS and Linux
+source .venv/bin/activate
+
+# deactivate env
+deactivate
+# another way
+source deactivate
+
+## flask - starting server
+
+flask --app <file_name (no .py)> run
+
+# example to start with a file called hello.py
+flask --app hello run
+
+# if the file is named app.py or wsgi.py, you don’t have to use --app
+
+# make the server publicly available on your network by using
+flask run --host=0.0.0.0
+# This tells your operating system to listen on all public IPs.
+
+# running the server in debug mode, use the flag --debug with run command
+
+
+## streamlit
+pip install streamlit
+
+# launching the streamlit hello world example
+streamlit hello
+# long format version
+python -m streamlit hello
+
+# launch app.py
+streamlit run app.py
+
+# pip requirements
+download all packages from pip requirements file
+pip install -r requirements.txt
+
+update the 'requirements.txt' file with new dependecies by running the command
+pip freeze > requirements.txt
+
+
+

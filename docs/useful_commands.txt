@@ -42,7 +42,7 @@ streamlit hello
 python -m streamlit hello
 
 # launch app.py
-streamlit run app.py
+streamlit run QuizCraft.py
 
 # pip requirements
 download all packages from pip requirements file

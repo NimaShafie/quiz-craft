@@ -33,6 +33,6 @@ pip install -r requirements.txt
 
 5. Start the local server by running the following command
 ```
-streamlit run app.py
+streamlit run QuizCraft.py
 ```
 

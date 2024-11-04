@@ -10,8 +10,25 @@ st.set_page_config(
     page_title="QuizCraft - AI Generated Quizzes 🧠📚❓",
     page_icon="📝",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
     menu_items=None)
+
+# resize logo
+st.html("""
+  <style>
+    [alt=Logo] {
+      height: 10rem;
+    }
+  </style>
+        """)
+
+st.logo(
+    image="images/logo/quiz-craft-logo.png",
+    size="large"
+    )
+
+# image test
+# st.image(image="images/logo/quiz-craft-logo.png")
 
 # importing necessary packages from LangChain
 from langchain.chat_models import ChatOpenAI

@@ -7,18 +7,22 @@ Follow these instructions to start the application locally on your computer
 ```
 python -m venv .venv
 ```
+Linux
+```
+python3 -m venv --without-pip foo
+```
 
 3. Activate the virutal enviornment by running the following command
+Windows command prompt
 ```
-# Windows command prompt
 .venv\Scripts\activate.bat
 ```
+Windows PowerShell
 ```
-# Windows PowerShell
 .venv\Scripts\Activate.ps1
 ```
+macOS and Linux
 ```
-# macOS and Linux
 source .venv/bin/activate
 ```
 

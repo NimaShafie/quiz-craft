@@ -1,0 +1,32 @@
+Test Cases #1: Users enter nothing(No input):
+
+Step 
+1) No input
+2) Try to generate a quiz
+Expected Result: The system will return red text prompting a user file required or text input and choice of subject name.
+
+
+Test Case #2: Testing if the system returns 20 questions
+Steps:
+1) User uploads file:
+2) The system will process the file and return 20 Multiple-choice questions from the file. 
+Expected Result: The system should create a quiz that contains 20 multiple-choice questions.
+
+Test Case #3: Verify that the system can generate quizzes based on provided definitions.
+Steps: 
+1) Input Definitions into the system
+2) Generate  the quiz
+Expected Result: The system should create a quiz with questions that accurately match the provided definitions.
+
+
+Test Case #4: Distractor 
+Steps: 
+1) Provide definitions
+2) Analyze distractors. Distractors should be incorrect answers but relevant to the material.
+Expected Result: The system should provide quizzes, with each question containing one answer and three distractors. The distractors should be relevant to the material and corrected.
+
+Test Case #5: Format
+Steps:
+1) Generate a quiz using user-provided definitions. 
+Expected Result: 
+All questions should follow multiple choice foramt with one correct answer and three distractors. 

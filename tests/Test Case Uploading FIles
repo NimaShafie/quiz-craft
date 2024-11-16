@@ -3,3 +3,4 @@ Test to see if commonly used file types are accepted like PDFs, TXTs, and DOCX.
 Simply try uploading different type of files, one at a time.
 
 Test Case #2
+See how long the max file size will take to process for each file type that can be uploaded.

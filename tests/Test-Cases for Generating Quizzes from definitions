@@ -25,8 +25,111 @@ Steps:
 2) Analyze distractors. Distractors should be incorrect answers but relevant to the material.
 Expected Result: The system should provide quizzes, with each question containing one answer and three distractors. The distractors should be relevant to the material and corrected.
 
-Test Case #5: Format
+Test Case #5: Format of generated quiz
 Steps:
 1) Generate a quiz using user-provided definitions. 
-Expected Result: 
-All questions should follow multiple choice foramt with one correct answer and three distractors. 
+Expected Result: All questions should follow a multiple-choice format with one correct answer and three distractors. 
+
+Test Case #6: Accuracy test for Question Generation
+Confirm that 99% of generated questions are accurate and based on the provided definitions.
+Steps: 
+1) Generate 10 quizzes using various definitions.
+2) Count the number of accurate questions (correct answer based on definition).
+Expected Result: At least 99% of questions should accurately reflect the definitions, maintaining a 99% accuracy rate.
+
+Test Cases #7: Success Rate for Quiz Generation
+Validate the success rate in generating quizzes without errors from user-provided definitions.
+Steps: 
+1) Conduct 10 Quiz Generations attempts with varied definitions.
+2) Track the number of successful quizzes created without issues
+Expected Result: At least 98% of successful quizzes out of 10 should be generated without errors.
+
+Test Case #8: File upload
+A user enters file upload but no text input
+Steps: 
+1) Upload the file and leave the subject matter and text empty.
+2) Generate quiz
+Expected Result: The system generates quizzes based on the file
+
+Test Case #9: 
+Subject matter Entry
+Steps:
+1) Enter any subject matters
+2) Generate Quizzes
+Expected Result: The system should return a quiz.
+
+
+Test Case #10: Minimum Number of Definitions Provided
+Steps:
+Input only one definition into the system.
+Attempt to generate a quiz.
+Expected Result: The system should create a quiz with one multiple-choice question that includes one correct answer and three distractors.
+
+Test Case #11: Multiple Subject Entries with Definitions
+Steps:
+Input definitions related to multiple subject areas.
+Specify subject areas for each definition.
+Generate the quiz.
+Expected Result: The system should categorize and label each question by the relevant subject matter, with each question containing one correct answer and three distractors.
+
+Test Case #12: Handling of Duplicated Definitions
+Steps:
+Input the same definition multiple times.
+Generate the quiz.
+Expected Result: The system should detect and avoid duplicates, creating only one unique question per definition, with one correct answer and three distractors.
+
+Test Case #13: Randomized Order of Questions
+Steps:
+Input multiple definitions.
+Generate the quiz.
+Check the order of questions in the quiz.
+Expected Result: The system should randomize the order of questions each time a quiz is generated, ensuring varied quiz experiences.
+
+Test Case #14: Distractor Plausibility Check
+Steps:
+Input definitions that have similar terms or phrases.
+Generate the quiz and review distractor options.
+Expected Result: The system should generate distractors that are plausible but clearly incorrect to prevent easy elimination of incorrect answers.
+
+Test Case #15: Long Definitions with Technical Language
+Steps:
+Input complex definitions with technical terms.
+Generate the quiz.
+Expected Result: The system should accurately interpret the technical language and generate appropriate questions and distractors without altering the meaning of the definition.
+
+Test Case #16: Short Definitions and Common Words
+Steps:
+Input definitions containing only a few words or common terms.
+Generate the quiz.
+Expected Result: The system should successfully create clear questions and relevant distractors from brief definitions without reducing question quality.
+
+Test Case #17: Quiz Preview Before Finalizing
+Steps:
+Input definitions and request to generate a quiz.
+Preview the generated quiz questions before finalizing.
+Expected Result: The system should provide a preview mode where users can view the generated questions and make any necessary edits before saving the quiz.
+
+Test Case #18: Editing a Generated Quiz
+Steps:
+Generate a quiz from the provided definitions.
+Edit the correct answer or distractors of one question.
+Expected Result: The system should allow users to edit the generated questions, save changes, and display the updated quiz.
+
+Test Case #19: Quiz Export Options
+Steps:
+Generate a quiz from the provided definitions.
+Export the quiz in a preferred format (e.g., PDF, CSV).
+Expected Result: The system should provide options to export the quiz in multiple formats, and the exported quiz should retain all questions, answers, and distractors accurately.
+
+Test Case #20: Automatic Saving of Quiz Progress
+Steps:
+Input definitions and start generating a quiz.
+Close the quiz generation window before completing.
+Reopen the quiz generation feature.
+Expected Result: The system should save the user's progress and allow them to continue quiz creation from where they left off.
+
+Test Case #21: Multiple Choice Option Shuffle
+Steps:
+Generate a quiz from definitions provided by the user.
+Verify the answer and distractor order for each generated quiz question.
+Expected Result: Each time the quiz is generated, the correct answer and distractors should be shuffled randomly, ensuring different option orders on subsequent quizzes.

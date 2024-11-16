@@ -24,3 +24,6 @@ Make sure an error pop-up shows if the user tries to enter a DOCX file bigger th
 
 Test Case #9
 Make sure an error pop-up shows if the user tries to enter a TXT file bigger than max size (200MB) allowed to be uploaded.
+
+Test CAse #10
+

@@ -3,31 +3,10 @@
 ## Description
 As a client, I want the quiz generator to allow me to input text, so it can automatically generate a quiz with relevant questions based on the provided information. This will save me time and effort by creating questions that are directly aligned with the content I provide.
 
-## Acceptance Criteria
-
-### Criteria 1:
-The quiz generator must provide a clear text input area where clients can paste or type the information they want to use for quiz generation. The system should support a content length of up to 10,000 characters for generating quiz questions.
-
-### Criteria 2:
-The quiz generator must be able to create at least 5 and up to 20 relevant questions based on the provided text.
-
-### Criteria 3:
-Performance Efficiency: The quiz should be generated within 5 seconds for an average input size of 5,000 characters.
-Usability: The text input area must be prominently displayed, easy to use, and include placeholder text or instructions to guide users on the type of content they should input.
-Reliability: The system should be capable of handling submissions without crashing or slowing down significantly, ensuring a 99.9% uptime.
-
-### Criteria 4:
-The generated questions should be formatted clearly, including numbering and proper spacing for readability.
-
-### Metrics
-Metric: Maximum size of text that can be processed without slowing the system.
-Target: Up to 10,000 characters without performance issues.
-
 ----
 
-# Test Cases
-
 ## Acceptance Criteria 1: Text Input Area and Content Length
+The quiz generator must provide a clear text input area where clients can paste or type the information they want to use for quiz generation. The system should support a content length of up to 10,000 characters for generating quiz questions.
 1. **Test Case 1.1: Text Input Functionality**
    - **Description:** Verify that the text input area is present and accepts text input.
    - **Steps:**
@@ -53,6 +32,7 @@ Target: Up to 10,000 characters without performance issues.
 ---
 
 ## Acceptance Criteria 2: Quiz Question Generation
+The quiz generator must be able to create at least 5 and up to 20 relevant questions based on the provided text.
 1. **Test Case 2.1: Minimum Questions**
    - **Description:** Verify that at least 5 questions are generated for valid input.
    - **Steps:**
@@ -77,6 +57,9 @@ Target: Up to 10,000 characters without performance issues.
 ---
 
 ## Acceptance Criteria 3: Performance, Usability, and Reliability
+Performance Efficiency: The quiz should be generated within 5 seconds for an average input size of 5,000 characters.
+Usability: The text input area must be prominently displayed, easy to use, and include placeholder text or instructions to guide users on the type of content they should input.
+Reliability: The system should be capable of handling submissions without crashing or slowing down significantly, ensuring a 99.9% uptime.
 1. **Test Case 3.1: Performance for Average Input**
    - **Description:** Verify that quiz generation takes less than 5 seconds for 5,000 characters.
    - **Steps:**
@@ -100,6 +83,7 @@ Target: Up to 10,000 characters without performance issues.
 ---
 
 ## Acceptance Criteria 4: Formatting of Generated Questions
+The generated questions should be formatted clearly, including numbering and proper spacing for readability.
 1. **Test Case 4.1: Proper Numbering**
    - **Description:** Verify that the generated questions are numbered sequentially.
    - **Steps:**
@@ -117,6 +101,8 @@ Target: Up to 10,000 characters without performance issues.
 ---
 
 ## Metrics Testing
+Metric: Maximum size of text that can be processed without slowing the system.
+Target: Up to 10,000 characters without performance issues.
 1. **Test Case M1: Performance for Maximum Input**
    - **Description:** Verify that the system processes 10,000 characters without significant performance issues.
    - **Steps:**

@@ -17,4 +17,13 @@ Test Case #6
 Test to see how long it takes for a file size of 200MC for TXT files.
 
 Test Case #7
-Make sure an error pop-up shows if the user tries to enter a file bigger than max size allowed to be uploaded.
+Make sure an error pop-up shows if the user tries to enter a PDF file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #8
+Make sure an error pop-up shows if the user tries to enter a DOCX file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #9
+Make sure an error pop-up shows if the user tries to enter a TXT file bigger than max size (200MB) allowed to be uploaded.
+
+Test CAse #10
+

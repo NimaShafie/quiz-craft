@@ -4,3 +4,8 @@ Simply try uploading different type of files, one at a time.
 
 Test Case #2
 See how long the max file size will take to process for each file type that can be uploaded.
+
+Test Case #3
+Make sure an error pop-up shows if the user tries to enter a file bigger than max size allowed to be uploaded.
+
+Test Case #4

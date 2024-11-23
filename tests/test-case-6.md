@@ -6,7 +6,7 @@ As a client, I want the quiz generator to allow me to input text, so it can auto
 ----
 
 ## Acceptance Criteria 1: Text Input Area and Content Length
-The quiz generator must provide a clear text input area where clients can paste or type the information they want to use for quiz generation. The system should support a content length of up to 10,000 characters for generating quiz questions.
+The quiz generator must provide a clear text input area where clients can paste or type the information they want to use for quiz generation. The system should support a content length of up to 4,000 characters for generating quiz questions.
 1. **Test Case 1.1: Text Input Functionality**
    - **Description:** Verify that the text input area is present and accepts text input.
    - **Steps:**
@@ -16,14 +16,14 @@ The quiz generator must provide a clear text input area where clients can paste 
    - **Expected Result:** Text input area is visible and accepts input.
 
 2. **Test Case 1.2: Maximum Content Length**
-   - **Description:** Verify that the system accepts and processes up to 10,000 characters.
+   - **Description:** Verify that the system accepts and processes up to 4,000 characters.
    - **Steps:**
-     1. Paste text with 10,000 characters into the input area.
+     1. Paste text with 4,000 characters into the input area.
      2. Submit for quiz generation.
    - **Expected Result:** The system accepts input and generates a quiz without errors.
 
 3. **Test Case 1.3: Exceeding Maximum Length**
-   - **Description:** Verify that the system handles input exceeding 10,000 characters.
+   - **Description:** Verify that the system handles input exceeding 4,000 characters.
    - **Steps:**
      1. Paste text with 10,001 characters into the input area.
      2. Submit for quiz generation.
@@ -41,11 +41,11 @@ The quiz generator must be able to create at least 5 and up to 20 relevant quest
    - **Expected Result:** At least 5 relevant questions are generated.
 
 2. **Test Case 2.2: Maximum Questions**
-   - **Description:** Verify that no more than 20 questions are generated, even for large input.
+   - **Description:** Verify that no more than n questions are generated, even for a very large input (where n = maximum number of questions to be generated via the front end).
    - **Steps:**
-     1. Enter a large text input (e.g., 10,000 characters).
+     1. Enter a large text input (e.g., 4,000 characters).
      2. Submit for quiz generation.
-   - **Expected Result:** A maximum of 20 relevant questions are generated.
+   - **Expected Result:** A maximum of n relevant questions are generated.
 
 3. **Test Case 2.3: Relevance of Questions**
    - **Description:** Verify that the generated questions are relevant to the input text.
@@ -54,6 +54,12 @@ The quiz generator must be able to create at least 5 and up to 20 relevant quest
      2. Submit for quiz generation.
    - **Expected Result:** The generated questions are closely related to the input content.
 
+4. **Test Case 2.4: Duplication of Questions**
+   - **Description:** Verify that generated questions do not contain any exact duplicates.
+   - **Steps:**
+     1. Enter a specific text with clear context, possibly duplicate information.
+     2. Submit for quiz generation.
+   - **Expected Result:** The generated questions may be closely related, but shall not be an exact duplicate (the wording for two or more questions shall never be exactly the same).
 ---
 
 ## Acceptance Criteria 3: Performance, Usability, and Reliability
@@ -77,7 +83,7 @@ Reliability: The system should be capable of handling submissions without crashi
 3. **Test Case 3.3: Reliability Under Load**
    - **Description:** Verify that the system remains stable when multiple simultaneous submissions are made.
    - **Steps:**
-     1. Perform 10 concurrent submissions of 10,000-character input.
+     1. Perform 10 concurrent submissions of 4,000-character input.
    - **Expected Result:** The system handles all submissions without crashing or significant delays.
 
 ---
@@ -102,11 +108,11 @@ The generated questions should be formatted clearly, including numbering and pro
 
 ## Metrics Testing
 Metric: Maximum size of text that can be processed without slowing the system.
-Target: Up to 10,000 characters without performance issues.
+Target: Up to 4,000 characters without performance issues.
 1. **Test Case M1: Performance for Maximum Input**
-   - **Description:** Verify that the system processes 10,000 characters without significant performance issues.
+   - **Description:** Verify that the system processes 4,000 characters without significant performance issues.
    - **Steps:**
-     1. Paste a 10,000-character input.
+     1. Paste a 4,000-character input.
      2. Measure the response time and system stability.
    - **Expected Result:** The system processes the input within acceptable limits (e.g., <5 seconds) without slowing down.
 

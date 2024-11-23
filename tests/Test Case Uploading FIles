@@ -5,35 +5,55 @@ Test Case #2
 Test to see DOCX files are accepted.
 
 Test Case #3
-Test to see if TXT files are accepted.
-
+Test to see DOC files are accepted.
 
 Test Case #4
-Test to see if EPUB files are accepted.
+Test to see if TXT files are accepted.
 
 Test Case #5
-Test to see how long it takes for a file size of 200MB for PDF files.
+Test to see if EPUB files are accepted.
 
 Test Case #6
-Test to see how long it takes for a file size of 200MB for DOCX files.
+Test to see if RTF files are accepted.
 
 Test Case #7
-Test to see how long it takes for a file size of 200MC for TXT files.
+Test to see how long it takes for a file size of 200MB for PDF files.
 
 Test Case #8
-Test to see how long it takes for a file size of 200MC for EPUB files.
+Test to see how long it takes for a file size of 200MB for DOCX files.
 
 Test Case #9
-Make sure an error pop-up shows if the user tries to enter a PDF file bigger than max size (200MB) allowed to be uploaded.
+Test to see how long it takes for a file size of 200MB for DOC files.
 
 Test Case #10
-Make sure an error pop-up shows if the user tries to enter a DOCX file bigger than max size (200MB) allowed to be uploaded.
+Test to see how long it takes for a file size of 200MC for TXT files.
 
 Test Case #11
-Make sure an error pop-up shows if the user tries to enter a TXT file bigger than max size (200MB) allowed to be uploaded.
+Test to see how long it takes for a file size of 200MC for EPUB files.
 
 Test Case #12
-Make sure an error pop-up shows if the user tries to enter a EPUB file bigger than max size (200MB) allowed to be uploaded.
+Test to see how long it takes for a file size of 200MC for RTF files.
 
 Test Case #13
-Make sure an error pop-up shows if user tries to upload more than 1 file.
+Test to make sure an error pop-up shows if the user tries to enter a PDF file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #14
+Test to make sure an error pop-up shows if the user tries to enter a DOCX file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #15
+Test to make sure an error pop-up shows if the user tries to enter a DOC file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #16
+Test to make sure an error pop-up shows if the user tries to enter a TXT file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #17
+Test to make sure an error pop-up shows if the user tries to enter a EPUB file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #18
+Test to make sure an error pop-up shows if the user tries to enter a RTF file bigger than max size (200MB) allowed to be uploaded.
+
+Test Case #19
+Test to make sure an error pop-up shows if user tries to upload more than 1 file.
+
+Test Case #20
+Test to make sure application doesn't accept a null file.

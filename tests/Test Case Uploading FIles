@@ -56,4 +56,4 @@ Test Case #19
 Test to make sure an error pop-up shows if user tries to upload more than 1 file.
 
 Test Case #20
-Test to make sure application can only accept one file at a time.
+Test to make sure application doesn't accept a null file.

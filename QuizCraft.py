@@ -86,6 +86,11 @@ with st.form("user_inputs"):
             text_widget.write(i)
             progress_widget.progress(i / 100)
 
+# llamaindex - pipeline used to ingest data
+# flask - for backend
+# ollama - free alternate to openai
+# streamlit - for frontend
+
 # implement the logic for generating the quiz (this is a placeholder)
 # #Check if the button has been clicked and all fields have input
 # if button and uploaded_file is not None and subject and tone:

@@ -33,10 +33,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Upgrade all pip packages from this file by running the command ```pip-upgrade```**
-
 5. Start the local server by running the following command
 ```
 streamlit run QuizCraft.py
 ```
+
+
+-----
+### Optional
+**Upgrade all pip packages from this file by running the command ```pip-upgrade```**
 

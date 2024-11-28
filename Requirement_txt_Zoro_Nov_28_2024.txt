@@ -87,7 +87,6 @@ llama-index-legacy==0.9.48.post4
 llama-index-llms-ollama==0.4.1
 llama-index-llms-openai==0.3.2
 llama-index-multi-modal-llms-openai==0.3.0
-# llama-index-packs-ollama-query-engine @ file:///D:/Kabir/CSUN/COMP_582/Project_Automatic_Quiz/SubFolder/ollama_pack
 llama-index-program-openai==0.3.1
 llama-index-question-gen-openai==0.3.0
 llama-index-readers-file==0.4.0

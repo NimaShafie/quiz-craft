@@ -91,3 +91,4 @@ ENV/
 
 # ignore ollama blobs
 .ollama/blobs/
+ollama/blobs/.*

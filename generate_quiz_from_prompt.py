@@ -16,12 +16,16 @@ Sample prompt : Rivers that start with the letter 'N'.
 
 """
 
+import re
+import json
+import sys
+import streamlit as st
 from llama_index.llms.ollama import Ollama
 import asyncio
 from config_reader import fetch_config_dict
 
 # Generate quiz using Async for faster response
-async def generate_quiz(number_of_questions = "5", difficulty = "easy", user_prompt = ""):
+def generate_quiz(number_of_questions = "5", difficulty = "easy", user_prompt = ""):
 
     config_dict = fetch_config_dict()
     # Initialize the LLM
@@ -30,51 +34,76 @@ async def generate_quiz(number_of_questions = "5", difficulty = "easy", user_pro
                  json_mode=True)
 
     # Define the improved prompt
-    prompt = """Give me an MCQ quiz on {}.
-                I want {} questions.
-                The difficulty of the quiz should be {}.""".format(user_prompt, number_of_questions, difficulty)
-    
-    prompt_2 = """
-                
-                Give the answers as well. Output as a structured JSON object.
-                Output in the following JSON format:
-        {
-            "quiz": [
-                {
-                    "question": "Question text here",
-                    "options": ["Option1", "Option2", "Option3", "Option4"],
-                    "answer": "Correct Option"
-                },
-                ...
-            ]
-        }
-                        
-                        """
-    
-    prompt += prompt_2
-    print(prompt)
+    prompt = f"""
+    You are tasked with creating an MCQ quiz on the topic: "{user_prompt}".
+    Please generate {number_of_questions} questions with the difficulty level set to "{difficulty}".
+
+    Ensure the output is a valid JSON object with the following structure:
+    {{
+        "quiz": [
+            {{
+                "question": "Question text here",
+                "options": ["Option1", "Option2", "Option3", "Option4"],
+                "answer": "Correct Option"
+            }},
+            ...
+        ]
+    }}
+
+    Provide only the JSON object as the response. Do not include any additional text or commentary.
+    """
+
+    # Use the blocking call for the LLM (replace `acomplete` with `complete`)
+    resp = llm.complete(prompt)  # Blocking call
+
+    # # Print the raw response for debugging
+    # print("Raw Response:\n", resp)
+
+    # Assuming `resp` is an object with a `.text` attribute or a similar field that contains the raw response:
+    response_text = resp.text if hasattr(resp, 'text') else str(resp)
+
+    # # Print the response text for further inspection
+    # print("Raw Response Text:", response_text)
+
+    # Ensure the response is a valid JSON string
+
     try:
-        # Use `await` for the async call
-        resp = await llm.acomplete(prompt)
-        #print("Response:\n", str(resp))
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        resp = "Error occured while generating the quiz on user prompt only." + str(e)
+        response_json = json.loads(response_text)
+        print("Parsed JSON Response:\n", json.dumps(response_json, indent=4))
 
-    return resp
+        # Extract the quiz data
+        quiz_data = response_json.get("quiz", [])
+        
+        # Check if the quiz data is empty
+        if not quiz_data:
+            print("Quiz data is empty or not found.")
+        else:
+            print("Quiz data retrieved successfully.")
+            
+        return {"quiz": quiz_data}
+    
+    except json.JSONDecodeError as e:
+        print(f"JSONDecodeError: {e}")
+        return {"quiz": []}
 
-# Main
-def main(number_of_questions, difficulty, user_prompt):
+# Main function
+def main():
+    if len(sys.argv) != 4:
+        print("Usage: python generate_quiz_from_prompt.py <number_of_questions> <difficulty> <user_prompt>")
+        return
 
-    response = asyncio.run(generate_quiz(number_of_questions, difficulty, user_prompt))
-    return response
+    number_of_questions = int(sys.argv[1])
+    difficulty = sys.argv[2]
+    user_prompt = sys.argv[3]
 
+    # Call the blocking version of generate_quiz (no async)
+    response = generate_quiz(number_of_questions, difficulty, user_prompt)
 
+    if response:
+        print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")
+        print(f"Printing the json.dumps(response): {json.dumps(response)}")
+    else:
+        print("Failed to generate quiz")
 
 if __name__ == "__main__":
-
-    user_prompt = "The history of California"
-    number_of_questions = 10 
-    difficulty = "hard"
-    
-    print(main(number_of_questions, difficulty, user_prompt))
+    main()

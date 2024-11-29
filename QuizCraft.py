@@ -3,6 +3,8 @@ import sys
 import streamlit as st
 import subprocess
 import re
+from io import BytesIO
+from fpdf import FPDF
 
 # Set page and theme info
 st.set_page_config(
@@ -13,7 +15,7 @@ st.set_page_config(
     menu_items=None
 )
 
-# Logo attributes
+# markdown attributes
 st.html("""<style> [alt=Logo] { height: 10rem; } </style>""")
 st.logo(image="images/logo/quiz-craft-logo.png", size="large")
 
@@ -172,14 +174,50 @@ def format_quiz_as_text(quiz_data):
 if submit:
     generate_quiz(number_of_questions, difficulty_level, user_prompt)
 
+# Function to generate a PDF file for the quiz
+def generate_quiz_pdf(quiz_text):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Split the formatted quiz text into lines and write to the PDF
+    for line in quiz_text.split("\n"):
+        pdf.multi_cell(0, 10, line)
+
+    # Return the PDF content as bytes
+    return pdf.output(dest='S').encode('latin1')
+
 # Download quiz button
 if st.session_state.quiz_generated:
     formatted_quiz = format_quiz_as_text(st.session_state.quiz_data)  # Format the quiz into a readable text
-    download_button = st.download_button(
-        label="Download Quiz",
-        data=formatted_quiz,
-        file_name="quiz.txt",
-        mime="text/plain"
-    )
-    if download_button:
-        st.write(formatted_quiz)
+
+    # Generate PDF content
+    pdf_content = generate_quiz_pdf(formatted_quiz)
+
+    pdf_download, text_download, = st.columns(2, vertical_alignment="bottom")
+
+    with pdf_download:
+        st.download_button(
+            use_container_width=True,
+            label="Download Quiz (.PDF) 📃",
+            key="download_pdf",
+            data=pdf_content,
+            file_name="quiz.pdf",
+            mime="application/pdf"
+        )
+
+    with text_download:
+        # Text download button
+        st.download_button(
+            use_container_width=True,
+            label="Download Quiz (.TXT) 📜",
+            key="download_txt",
+            data=formatted_quiz,
+            file_name="quiz.txt",
+            mime="text/plain"
+        )
+
+    # debug to write out the quiz data without downloading it
+    # Optionally display the formatted quiz
+    # st.write(formatted_quiz)

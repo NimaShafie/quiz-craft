@@ -90,6 +90,4 @@ ENV/
 .ropeproject
 
 # ignore ollama blobs
-.ollama/blobs/
-ollama/blobs/*
-ollama/blobs
+ollama/*

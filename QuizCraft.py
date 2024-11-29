@@ -19,12 +19,6 @@ st.logo(image="images/logo/quiz-craft-logo.png", size="large")
 # app title
 st.title("QuizCraft 🧠📚❓")
 
-# importing necessary packages from LangChain
-# from langchain_community.chat_models import ChatOpenAI
-# from langchain.prompts import PromptTemplate
-# from langchain.chains import LLMChain
-# from langchain.chains import SequentialChain
-
 # loading json file
 with open("response.json", "r") as file:
     RESPONSE_JSON = json.load(file)
@@ -34,6 +28,13 @@ description = st.text("QuizCraft is an AI-powered tool that generates different 
                      "Simply input some text or upload a PDF/text file, and adjust some parameters.\n"
                      "QuizCraft will generate a quiz for you in seconds! 🚀"
                      )
+
+# init session state
+if "quiz_generated" not in st.session_state:
+    st.session_state.quiz_generated = False
+
+if "quiz_data" not in st.session_state:
+    st.session_state.quiz_data = None
 
 # create form
 with st.form("user_inputs"):
@@ -48,10 +49,6 @@ with st.form("user_inputs"):
 
     st.divider()
 
-    # probably not needed
-    # #subject
-    # subject = st.text_input("Subject name:", max_chars=20, placeholder="Machine Learning")
-
     # user will be able to select the number of questions for each type
     # based on what available question types were selected above
     # #input fields
@@ -65,7 +62,7 @@ with st.form("user_inputs"):
                                         default=["Multiple Choice"],
                                         help="Select the type of questions you want in the quiz"
                                         )
-
+        
     with col2:
         #quiz difficulty
         options = ["Easy", "Medium", "Hard"]
@@ -77,8 +74,8 @@ with st.form("user_inputs"):
     number_of_questions = st.slider("Number of Questions", min_value=5, max_value=50, value=10,
                                     help="Select the number of questions you want in the quiz"
                                     )
-    
     # status for generating quiz
+
     submit = st.form_submit_button("Generate Quiz")
 
 # outside of the form, create the download quiz logic
@@ -87,33 +84,24 @@ def generate_quiz(number_of_questions, difficulty_level, user_prompt):
         st.write("Running through LLM...")
         quiz_data = run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt)
         if quiz_data:
+            st.write("Writing ")
             status.update(
                 label="Quiz Generated!", state="complete", expanded=False
             )
             st.toast('Quiz Ready!', icon='🎉')
             st.session_state.quiz_generated = True
             st.session_state.quiz_data = quiz_data  # Store the quiz data in session state
+
+            try:
+                json.dumps(quiz_data)  # This will raise an exception if not serializable
+                st.session_state.quiz_data = quiz_data
+            except TypeError as e:
+                print(f"Quiz data is not serializable: {e}")
+                            
         else:
             st.write("Failed to generate quiz. Please try again.")
 
-
-# previous version
-# # outside of the form, create the download quiz logic
-# def generate_quiz(number_of_questions, difficulty_level, user_prompt):
-#     with st.status("Generating Quiz...", expanded=True) as status:
-#         st.write("Running through LLM...")
-#         quiz_data = run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt)
-#         if quiz_data:
-#             status.update(
-#                 label="Quiz Generated!", state="complete", expanded=False
-#             )
-#             st.write("------LOG------")
-#             st.write(quiz_data)
-#             st.toast('Quiz Ready!', icon='🎉')
-#             st.session_state.quiz_generated = True
-#         else:
-#             st.write("Failed to generate quiz. Please try again.")
-
+# run the generate_quiz_from_prompt.py script
 def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt):
     print(f"Running generate_quiz_from_prompt.py with arguments: {number_of_questions}, {difficulty_level}, {user_prompt}")
     result = subprocess.run([sys.executable, 'generate_quiz_from_prompt.py',
@@ -133,9 +121,12 @@ def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt)
         quiz_data = None
     return quiz_data
 
-if st.session_state.get('quiz_generated', False):
-    st.write("st.session_state.get('quiz_generated', False): ON")
-    print("st.session_state.get('quiz_generated', False): ON")
+# generate quiz if submit button is clicked
+if submit:
+    generate_quiz(number_of_questions, difficulty_level, user_prompt)
+
+# download quiz button
+if st.session_state.quiz_generated:
     quiz_data = json.dumps(st.session_state.quiz_data, indent=4)  # Convert the JSON object back to a string
     download_button = st.download_button(
         label="Download Quiz",
@@ -144,21 +135,4 @@ if st.session_state.get('quiz_generated', False):
         mime="application/json"
     )
     if download_button:
-        st.write("File download initiated.")
-        st.write("Part 2: Quiz Data:")
         st.write(quiz_data)
-
-if submit:
-    generate_quiz(number_of_questions, difficulty_level, user_prompt)
-
-# if st.session_state.get('quiz_generated', False):
-#     download_button = st.download_button(
-#         label="Download Quiz",
-#         data=quiz_data,
-#         file_name="quiz.txt",
-#         mime="text/plain"
-#     )
-#     if download_button:
-#         st.write("File download initiated.")
-#         st.write("Part 2: Quiz Data:")
-#         st.write(quiz_data)

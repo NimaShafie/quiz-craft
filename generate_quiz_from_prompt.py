@@ -69,7 +69,9 @@ def generate_quiz(number_of_questions = "5", difficulty = "easy", user_prompt = 
 
     try:
         response_json = json.loads(response_text)
-        print("Parsed JSON Response:\n", json.dumps(response_json, indent=4))
+        print(json.dumps(response_json, indent=4))
+        
+        # print("Parsed JSON Response:\n", json.dumps(response_json, indent=4))
 
         # Extract the quiz data
         quiz_data = response_json.get("quiz", [])
@@ -99,11 +101,11 @@ def main():
     # Call the blocking version of generate_quiz (no async)
     response = generate_quiz(number_of_questions, difficulty, user_prompt)
 
-    if response:
-        print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")
-        print(f"Printing the json.dumps(response): {json.dumps(response)}")
-    else:
-        print("Failed to generate quiz")
+    # if response:
+    #     print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")
+    #     print(f"Printing the json.dumps(response): {json.dumps(response)}")
+    # else:
+    #     print("Failed to generate quiz")
 
 if __name__ == "__main__":
     main()

@@ -1,137 +1,164 @@
 import json
-import pandas as pd
+import sys
 import streamlit as st
-from time import sleep
-from stqdm import stqdm
+import subprocess
 
-# from dotenv import load_dotenv
-# from src.mcq_generator.utils import read_file, get_table_data
-# from src.mcq_generator.logger import logging
-
-# set page/theme info
+# set page and theme info
 st.set_page_config(
     page_title="QuizCraft - AI Generated Quizzes 🧠📚❓",
     page_icon="📝",
     layout="centered",
-    initial_sidebar_state="auto",
-    menu_items=None)
-
-# resize logo
-st.html("""
-  <style>
-    [alt=Logo] {
-      height: 10rem;
-    }
-  </style>
-        """)
-
-st.logo(
-    image="images/logo/quiz-craft-logo.png",
-    size="large"
+    initial_sidebar_state="collapsed",
+    menu_items=None
     )
 
+# logo attributes
+st.html("""<style> [alt=Logo] { height: 10rem; } </style>""")
+st.logo(image="images/logo/quiz-craft-logo.png", size="large")
+
+# app title
+st.title("QuizCraft 🧠📚❓")
+
 # importing necessary packages from LangChain
-from langchain_community.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chains import SequentialChain
+# from langchain_community.chat_models import ChatOpenAI
+# from langchain.prompts import PromptTemplate
+# from langchain.chains import LLMChain
+# from langchain.chains import SequentialChain
 
 # loading json file
 with open("response.json", "r") as file:
     RESPONSE_JSON = json.load(file)
 
-#app title
-st.title("QuizCraft 🧠📚❓")
-
-#description
+# description
 description = st.text("QuizCraft is an AI-powered tool that generates different questions from text.\n"
                      "Simply input some text or upload a PDF/text file, and adjust some parameters.\n"
-                     "QuizCraft will generate a quiz for you in seconds! 🚀")
+                     "QuizCraft will generate a quiz for you in seconds! 🚀"
+                     )
 
-#create form
+# create form
 with st.form("user_inputs"):
-    #text input
-    text_area = st.text_area("Text Input", height=200, max_chars=4000, help="Enter your text here")
+    # text input, keep max_chars at 3500 to avoid overflow with the model
+    user_prompt = st.text_area("Text Input", height=200, max_chars=3500, help="Enter your text here")
 
-    #file upload
-    uploaded_file = st.file_uploader("Upload your PDF or txt file here")
+    st.write("<center>OR</center>", unsafe_allow_html=True)
 
-    #subject
-    subject = st.text_input("Subject name:", max_chars=20, placeholder="Machine Learning")
+    # file upload
+    uploaded_file = st.file_uploader("Upload your TXT or PDF file here",
+                                     type=["txt", "pdf"], help="Upload a TXT or PDF file")
 
-    #question type
-    question_types = st.multiselect("Question Types", ["Multiple Choice", "True/False", "Fill in the Blanks"],
-                                    default=["Multiple Choice"], help="Select the type of questions you want in the quiz")
+    st.divider()
+
+    # probably not needed
+    # #subject
+    # subject = st.text_input("Subject name:", max_chars=20, placeholder="Machine Learning")
 
     # user will be able to select the number of questions for each type
     # based on what available question types were selected above
     # #input fields
     # mcq_count=st.number_input("No. of MCQs: ", min_value=3, max_value=50, placeholder= "10")
 
-    #quiz difficulty
-    difficulty_level = st.select_slider("Quiz Difficulty", options=["Easy", "Medium", "Hard"],
-                                        value="Medium", help="Select the difficulty level of the quiz")
+    col1, col2, = st.columns(2, gap="large")
+
+    with col1:
+        #question type
+        question_types = st.multiselect("Question Types", ["Multiple Choice", "True/False", "Fill in the Blanks"],
+                                        default=["Multiple Choice"],
+                                        help="Select the type of questions you want in the quiz"
+                                        )
+
+    with col2:
+        #quiz difficulty
+        options = ["Easy", "Medium", "Hard"]
+        difficulty_level = st.segmented_control(
+            "Quiz Difficulty", options, default="Medium", help="Select the difficulty level of the quiz"
+        )
 
     #number of questions
     number_of_questions = st.slider("Number of Questions", min_value=5, max_value=50, value=10,
-                                    help="Select the number of questions you want in the quiz")
-
-    #Create button
+                                    help="Select the number of questions you want in the quiz"
+                                    )
+    
+    # status for generating quiz
     submit = st.form_submit_button("Generate Quiz")
-    text_widget = st.empty()
-    progress_widget = st.empty()
-    if submit:
-        for i in range(101):
-            sleep(0.01)
-            text_widget.write(i)
-            progress_widget.progress(i / 100)
 
-# llamaindex - pipeline used to ingest data
-# flask - for backend
-# ollama - free alternate to openai
-# streamlit - for frontend
+# outside of the form, create the download quiz logic
+def generate_quiz(number_of_questions, difficulty_level, user_prompt):
+    with st.status("Generating Quiz...", expanded=True) as status:
+        st.write("Running through LLM...")
+        quiz_data = run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt)
+        if quiz_data:
+            status.update(
+                label="Quiz Generated!", state="complete", expanded=False
+            )
+            st.toast('Quiz Ready!', icon='🎉')
+            st.session_state.quiz_generated = True
+            st.session_state.quiz_data = quiz_data  # Store the quiz data in session state
+        else:
+            st.write("Failed to generate quiz. Please try again.")
 
-# implement the logic for generating the quiz (this is a placeholder)
-# #Check if the button has been clicked and all fields have input
-# if button and uploaded_file is not None and subject and tone:
-#     with st.spinner("Generating MCQs..."):
-#         try:
-#             text = read_file(uploaded_file)
-#             #count tokens and the cost of API call
-#             with get_openai_callback() as cb:
-#                 response = generate_evaluate_chain(
-#                     {
-#                         "text": text,
-#                         "number": mcq_count,
-#                         "subject": subject,
-#                         "tone": tone,
-#                         "response_json": json.dumps(RESPONSE_JSON)
-#                     }
-#                 )
 
-#         except Exception as e:
-#             traceback.print_exception(type(e), e, e.__traceback__)
-#             st.error("An error was encountered!!") 
-
+# previous version
+# # outside of the form, create the download quiz logic
+# def generate_quiz(number_of_questions, difficulty_level, user_prompt):
+#     with st.status("Generating Quiz...", expanded=True) as status:
+#         st.write("Running through LLM...")
+#         quiz_data = run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt)
+#         if quiz_data:
+#             status.update(
+#                 label="Quiz Generated!", state="complete", expanded=False
+#             )
+#             st.write("------LOG------")
+#             st.write(quiz_data)
+#             st.toast('Quiz Ready!', icon='🎉')
+#             st.session_state.quiz_generated = True
 #         else:
-#             print(f"Total Tokens: {cb.total_tokens}")
-#             print(f"Prompt Tokens: {cb.prompt_tokens}")
-#             print(f"Completion Tokens: {cb.completion_tokens}")
-#             print(f"Total Cost: Only {cb.total_cost}")
-#             if isinstance(response, dict):
-#                 #Extract the quiz data from the response
-#                 quiz=response.get("Quiz", None)
-#                 if quiz is not None:
-#                     table_data = get_table_data(quiz)
-#                     if table_data is not None:
-#                         df = pd.DataFrame(table_data)
-#                         df.index = df.index + 1
-#                         st.table(df)
+#             st.write("Failed to generate quiz. Please try again.")
 
-#                         #Display the review in a text box
-#                         st.text_area(label="Review", value= response["review"])
-#                     else:
-#                         st.error("Error in the table data")
+def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt):
+    print(f"Running generate_quiz_from_prompt.py with arguments: {number_of_questions}, {difficulty_level}, {user_prompt}")
+    result = subprocess.run([sys.executable, 'generate_quiz_from_prompt.py',
+                             str(number_of_questions), difficulty_level, user_prompt],
+                             capture_output=True, text=True)
+    # print(f"Printing result.stdout results: {result.stdout}")
+    # print(f"Script stdout: {result.stdout}")
+    # print(f"Script stderr: {result.stderr}")
+    # print(f"Return code: {result.returncode}")
+    # print(f"Type of result.stdout: {type(result.stdout)}")
+    quiz_data = result.stdout
+    try:
+        print(f"Trying to parse JSON...")
+        print(f"result.stdout: ", result.stdout)
+    except json.JSONDecodeError as e:
+        print(f"JSONDecodeError: {e}")
+        quiz_data = None
+    return quiz_data
 
-#             else:
-#                 st.write(response)
+if st.session_state.get('quiz_generated', False):
+    st.write("st.session_state.get('quiz_generated', False): ON")
+    print("st.session_state.get('quiz_generated', False): ON")
+    quiz_data = json.dumps(st.session_state.quiz_data, indent=4)  # Convert the JSON object back to a string
+    download_button = st.download_button(
+        label="Download Quiz",
+        data=quiz_data,
+        file_name="quiz.txt",
+        mime="application/json"
+    )
+    if download_button:
+        st.write("File download initiated.")
+        st.write("Part 2: Quiz Data:")
+        st.write(quiz_data)
+
+if submit:
+    generate_quiz(number_of_questions, difficulty_level, user_prompt)
+
+# if st.session_state.get('quiz_generated', False):
+#     download_button = st.download_button(
+#         label="Download Quiz",
+#         data=quiz_data,
+#         file_name="quiz.txt",
+#         mime="text/plain"
+#     )
+#     if download_button:
+#         st.write("File download initiated.")
+#         st.write("Part 2: Quiz Data:")
+#         st.write(quiz_data)

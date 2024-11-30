@@ -98,3 +98,11 @@ ollama/
 .temp/*
 .temp/
 temp/
+
+# ignore devcontainer and vscode
+.devcontainer/*
+.devcontainer/
+devcontainer/
+.vscode/*
+.vscode/
+vscode/

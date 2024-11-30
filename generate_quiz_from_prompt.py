@@ -15,72 +15,70 @@ user_prompt : <str> The quiz will be generated on this prompt.
 Sample prompt : Rivers that start with the letter 'N'.
 
 """
-
-import re
 import json
 import sys
 import streamlit as st
 from llama_index.llms.ollama import Ollama
-import asyncio
 from config_reader import fetch_config_dict
 
-# Generate quiz using Async for faster response
-def generate_quiz(number_of_questions = "5", difficulty = "easy", user_prompt = ""):
+# Function to generate quiz based on user prompt
+def generate_quiz(number_of_questions="5", difficulty="easy", user_prompt="", question_types=["Multiple Choice"]):
 
     config_dict = fetch_config_dict()
-    # Initialize the LLM
-    llm = Ollama(model=config_dict.get("model_name", "basic_model"), 
-                 request_timeout=120.0, 
-                 json_mode=True)
+    # Initialize the LLM    
+    llm = Ollama(config_dict.get("model_name", "advanced_model"),
+                 temperature=0.5, json_mode=True)
 
-    # Define the improved prompt
+    # Define the prompt based on the selected question types
+    question_type_instructions = {
+        "Multiple Choice": "Create a multiple-choice question with four options, where one option is correct.",
+        "True/False": "Create a true/false question with the correct answer (True or False).",
+        "Fill in the Blanks": "Create a fill-in-the-blanks question with a missing word or phrase."
+    }
+    
+    # Build the prompt dynamically based on selected question types
+    question_type_prompt = "\n".join([question_type_instructions[qt] for qt in question_types])
+
     prompt = f"""
-    You are tasked with creating an MCQ quiz on the topic: "{user_prompt}".
-    Please generate {number_of_questions} questions with the difficulty level set to "{difficulty}".
+    You are tasked with creating a quiz on the topic: "{user_prompt}". 
+    Please generate {number_of_questions} questions at the difficulty level "{difficulty}".
+    The questions should be of the following types: {", ".join(question_types)}.
+    If there is more than one question type present, keep all the same question types together, create a question of each type before moving to the next type.
 
-    Ensure the output is a valid JSON object with the following structure:
+    The output should be a JSON object with this structure:
     {{
         "quiz": [
             {{
-                "question": "Question text here",
+                "question": "Question text",
+                "type": "Question type",
                 "options": ["Option1", "Option2", "Option3", "Option4"],
-                "answer": "Correct Option"
+                "answer": "Correct answer"
             }},
             ...
         ]
     }}
-
-    Provide only the JSON object as the response. Do not include any additional text or commentary.
     """
 
-    # Use the blocking call for the LLM (replace `acomplete` with `complete`)
-    resp = llm.complete(prompt)  # Blocking call
-
-    # # Print the raw response for debugging
-    # print("Raw Response:\n", resp)
+    # Blocking call
+    resp = llm.complete(prompt)
 
     # Assuming `resp` is an object with a `.text` attribute or a similar field that contains the raw response:
     response_text = resp.text if hasattr(resp, 'text') else str(resp)
-
-    # # Print the response text for further inspection
-    # print("Raw Response Text:", response_text)
+    # print("Model Response Text:", response_text)
 
     # Ensure the response is a valid JSON string
-
     try:
         response_json = json.loads(response_text)
         print(json.dumps(response_json, indent=4))
-        
-        # print("Parsed JSON Response:\n", json.dumps(response_json, indent=4))
 
         # Extract the quiz data
         quiz_data = response_json.get("quiz", [])
         
-        # Check if the quiz data is empty
-        if not quiz_data:
-            print("Quiz data is empty or not found.")
-        else:
-            print("Quiz data retrieved successfully.")
+        # # Check if the quiz data is empty
+        # if not quiz_data:
+        #     # print("Quiz data is empty or not found.")
+        # else:
+        #     # print("Quiz data retrieved successfully.")
             
         return {"quiz": quiz_data}
     
@@ -90,22 +88,25 @@ def generate_quiz(number_of_questions = "5", difficulty = "easy", user_prompt = 
 
 # Main function
 def main():
-    if len(sys.argv) != 4:
-        print("Usage: python generate_quiz_from_prompt.py <number_of_questions> <difficulty> <user_prompt>")
+    if len(sys.argv) != 5:
+        print("Usage: python generate_quiz_from_prompt.py <number_of_questions> <difficulty> <user_prompt> <question_types>")
         return
 
     number_of_questions = int(sys.argv[1])
     difficulty = sys.argv[2]
     user_prompt = sys.argv[3]
+    question_types = sys.argv[4].split(",")  # Expecting a comma-separated string of question types
 
     # Call the blocking version of generate_quiz (no async)
-    response = generate_quiz(number_of_questions, difficulty, user_prompt)
+    response = generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
 
-    # if response:
-    #     print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")
-    #     print(f"Printing the json.dumps(response): {json.dumps(response)}")
+    # # If response is successful
+    # if response and response.get("quiz"):
+    #     print("Quiz generated successfully!")
+    #     print(f"Quiz Data: {json.dumps(response, indent=4)}")
     # else:
-    #     print("Failed to generate quiz")
+    #     print("Failed to generate quiz.")
 
 if __name__ == "__main__":
     main()
+    

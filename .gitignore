@@ -106,3 +106,6 @@ devcontainer/
 .vscode/*
 .vscode/
 vscode/
+
+# ignoring config.ini for per user configuration
+config.ini

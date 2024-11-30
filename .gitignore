@@ -93,3 +93,8 @@ ENV/
 ollama/*
 .ollama/*
 ollama/
+
+# ignore temp
+.temp/*
+.temp/
+temp/

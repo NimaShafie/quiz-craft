@@ -109,3 +109,5 @@ vscode/
 
 # ignoring config.ini for per user configuration
 config.ini
+./config.ini
+.config.ini

@@ -27,7 +27,7 @@ def generate_quiz(number_of_questions="5", difficulty="easy", user_prompt="", qu
     config_dict = fetch_config_dict()
     # Initialize the LLM    
     llm = Ollama(config_dict.get("model_name", "advanced_model"),
-                 temperature=0.5, json_mode=True)
+                 temperature=0.6, json_mode=True)
 
     # Define the prompt based on the selected question types
     question_type_instructions = {

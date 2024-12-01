@@ -13,10 +13,22 @@ jobs:
   streamlit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - uses: streamlit/streamlit-app-action@v0.0.3
+          python-version: '3.12'
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Streamlit app
+        uses: streamlit/streamlit-app-action@v0.0.3
         with:
-          app-path: streamlit_app.py
+          app-path: QuizCraft.py
+          ruff: true

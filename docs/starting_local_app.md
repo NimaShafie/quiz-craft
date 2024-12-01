@@ -37,9 +37,3 @@ pip install -r requirements.txt
 ```
 streamlit run QuizCraft.py
 ```
-
-
------
-### Optional
-**Upgrade all pip packages from this file by running the command ```pip-upgrade```**
-

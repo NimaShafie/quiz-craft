@@ -17,7 +17,6 @@ Sample prompt : Rivers that start with the letter 'N'.
 """
 import json
 import sys
-import streamlit as st
 from llama_index.llms.ollama import Ollama
 from config_reader import fetch_config_dict
 
@@ -28,17 +27,8 @@ def generate_quiz(number_of_questions="5", difficulty="easy", user_prompt="", qu
     # Initialize the LLM    
     llm = Ollama(config_dict.get("model_name", "advanced_model"),
                  temperature=0.6, json_mode=True)
-
-    # Define the prompt based on the selected question types
-    question_type_instructions = {
-        "Multiple Choice": "Create a multiple-choice question with four options, where one option is correct.",
-        "True/False": "Create a true/false question with the correct answer (True or False).",
-        "Fill in the Blanks": "Create a fill-in-the-blanks question with a missing word or phrase."
-    }
     
-    # Build the prompt dynamically based on selected question types
-    question_type_prompt = "\n".join([question_type_instructions[qt] for qt in question_types])
-
+    # Sample prompt
     prompt = f"""
     You are tasked with creating a quiz on the topic: "{user_prompt}". 
     Please generate {number_of_questions} questions at the difficulty level "{difficulty}".
@@ -98,14 +88,7 @@ def main():
     question_types = sys.argv[4].split(",")  # Expecting a comma-separated string of question types
 
     # Call the blocking version of generate_quiz (no async)
-    response = generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
-
-    # # If response is successful
-    # if response and response.get("quiz"):
-    #     print("Quiz generated successfully!")
-    #     print(f"Quiz Data: {json.dumps(response, indent=4)}")
-    # else:
-    #     print("Failed to generate quiz.")
+    generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
 
 if __name__ == "__main__":
     main()

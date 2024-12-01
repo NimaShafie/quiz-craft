@@ -63,10 +63,26 @@ def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt,
     # Prepare the list of selected question types to pass to the script
     question_types_str = ','.join(question_types)
 
+    try:
     # Running the subprocess to generate the quiz
-    result = subprocess.run([sys.executable, 'generate_quiz_from_prompt.py',
-                             str(number_of_questions), difficulty_level, user_prompt, question_types_str],
-                             capture_output=True, text=True, timeout=120)
+        result = subprocess.run([sys.executable, 'src/generate_quiz_from_prompt.py',
+                                str(number_of_questions), difficulty_level, user_prompt, question_types_str],
+                                capture_output=True, text=True, timeout=120)
+    
+        if "generate_quiz_from_prompt.py has started" in result.stdout:
+            print("Successfully reached generate_quiz_from_prompt.py")
+        else:
+            print("Script executed but no confirmation message found.")
+
+            print("Script Output:\n", result.stdout)
+            print("Error (if any):\n", result.stderr)
+
+    except subprocess.TimeoutExpired as e:
+        print("The script timed out:", str(e))
+    except FileNotFoundError as e:
+        print("Could not find the script:", str(e))
+    except Exception as e:
+        print("An error occurred:", str(e))
 
     print(f"\nRaw result.stdout: {repr(result.stdout)}")  # Debug output
 
@@ -141,15 +157,18 @@ def format_quiz_as_text(quiz_data):
     question_number = 1
     for quiz in quiz_data.get("quiz", []):
         options = quiz.get('options', [])
-        correct_answer = quiz.get('answer', "")  # Default to an empty string if no answer is provided
+        correct_answer = quiz.get('answer', "").strip()  # Default to an empty string if no answer is provided
         question_type = quiz.get('type', '').strip().lower()  # Normalize type to lowercase and strip spaces
 
         # Handle the correct answer display for different question types
-        if question_type == "multiple choice" and correct_answer in options:
-            # For multiple-choice questions, find the correct option letter (e.g., 'a', 'b', 'c', 'd')
-            correct_index = options.index(correct_answer)  # Find the index of the correct answer in options
-            correct_letter = chr(97 + correct_index)  # Convert to letter ('a', 'b', 'c', etc.)
-            formatted_quiz += f"{question_number}. ({correct_letter}) - {correct_answer}\n"
+        if question_type == "multiple choice":
+            # Extract the text part of the correct answer
+            correct_answer_text = correct_answer.split(". ", 1)[1] if ". " in correct_answer else correct_answer
+            if correct_answer_text in options:
+                # Find the correct option letter (e.g., 'a', 'b', 'c', 'd')
+                correct_index = options.index(correct_answer_text)
+                correct_letter = chr(97 + correct_index)  # Convert to letter ('a', 'b', 'c', etc.)
+                formatted_quiz += f"{question_number}. ({correct_letter}) - {correct_answer_text}\n"
 
         elif question_type == "true/false":
             # Ensure correct_answer is handled regardless of type (bool or string)
@@ -171,6 +190,7 @@ def format_quiz_as_text(quiz_data):
         question_number += 1
 
     return formatted_quiz
+
 
 # Set page and theme info
 st.set_page_config(

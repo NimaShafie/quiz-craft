@@ -207,6 +207,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Build the absolute path to the image
 logo_path = os.path.join(script_dir, "../images/logo/quiz-craft-logo.png")
+response_path = os.path.join(script_dir, "../response.json")
 
 # markdown attributes
 st.html("""<style> [alt=Logo] { height: 10rem; } </style>""")
@@ -216,7 +217,7 @@ st.logo(image=logo_path, size="large")
 st.title("QuizCraft 🧠📚❓")
 
 # Loading json file
-with open("response.json", "r") as file:
+with open(response_path, "r") as file:
     RESPONSE_JSON = json.load(file)
 
 # Description

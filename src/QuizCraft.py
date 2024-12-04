@@ -29,6 +29,7 @@ import sys
 import streamlit as st
 import subprocess
 import re
+import os
 from fpdf import FPDF
 
 # Function to generate quiz, now accepting selected question types
@@ -201,9 +202,15 @@ st.set_page_config(
     menu_items=None
 )
 
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Build the absolute path to the image
+logo_path = os.path.join(script_dir, "../images/logo/quiz-craft-logo.png")
+
 # markdown attributes
 st.html("""<style> [alt=Logo] { height: 10rem; } </style>""")
-st.logo(image="images/logo/quiz-craft-logo.png", size="large")
+st.logo(image=logo_path, size="large")
 
 # App title
 st.title("QuizCraft 🧠📚❓")

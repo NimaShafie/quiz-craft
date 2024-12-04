@@ -19,11 +19,11 @@ RUN curl -sSfL $OLLAMA_CLI_URL -o /tmp/ollama_installer.sh && \
     chmod +x /tmp/ollama_installer.sh && \
     sh /tmp/ollama_installer.sh
 
-# Verify Ollama CLI installation
+# Start Ollama serve, verify version, and then stop it
 RUN ollama serve & \
     sleep 5 && \
     ollama --version && \
-    ollama stop
+    pkill -f "ollama serve"
 
 # Pre-download the Llama3 model
 RUN ollama pull llama3

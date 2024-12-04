@@ -9,13 +9,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     tar \
     libstdc++6 \
+    procps \
     && apt-get clean
 
 # Define Ollama CLI URL as an environment variable
-ENV OLLAMA_CLI_URL=https://ollama.com/install.sh
+ENV OLLAMA_CLI_URL=https://ollama.com/download/linux
 
-# Install Ollama CLI with debugging output
-RUN curl -sSfL $OLLAMA_CLI_URL -o /tmp/ollama_installer.sh && \
+# Install Ollama CLI
+RUN curl -sSfL https://ollama.com/install.sh -o /tmp/ollama_installer.sh && \
     chmod +x /tmp/ollama_installer.sh && \
     sh /tmp/ollama_installer.sh
 
@@ -24,9 +25,6 @@ RUN ollama serve & \
     sleep 5 && \
     ollama --version && \
     pkill -f "ollama serve"
-
-# Pre-download the Llama3 model
-RUN ollama pull llama3
 
 # Copy the application code into the container
 COPY . /app

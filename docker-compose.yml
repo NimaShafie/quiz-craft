@@ -1,6 +1,7 @@
 services:
   streamlit:
     build: .  # Build from the local Dockerfile
+    container_name: quiz_craft_app_streamlit  # Name the container for easier referencing
     ports:
       - "8501:8501"  # Expose Streamlit port
     environment:
@@ -13,19 +14,18 @@ services:
 
   ollama:
     image: ollama/ollama  # Use the official Ollama image
-    container_name: ollama_in_streamlit  # Name the container for easier referencing
-    command: ["serve"]  # Use the custom start script
+    container_name: quiz_craft_llm_ollama  # Name the container for easier referencing
+    command: ["serve"]  # start with serve (only accepts this command)
     ports:
       - "11434:11434"  # Expose Ollama's API port
     volumes:
       - ollama_models:/root/.ollama/models  # Persist Ollama's models
-      - ./start_ollama.sh:/app/start_ollama.sh  # Mount the custom start script
     restart: no
     networks:
       - app_network
 
 volumes:
-  ollama_models:  # Named volume for model storage
+  ollama_models:  # Named volume to store Ollama's models
 
 networks:
   app_network:

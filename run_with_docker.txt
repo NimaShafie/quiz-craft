@@ -135,4 +135,4 @@ then continue to check: localhost:11434 (to check if ollama works)
 
 
 --- newest working method (12/4/2024)
-run: docker-compose up --build -d
+run: docker-compose up --build -d	# build docker container, then run it

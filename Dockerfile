@@ -22,4 +22,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8501
 
 # Start Streamlit after Ollama is ready
-CMD ["streamlit", "run", "src/QuizCraft.py"]
+CMD ["streamlit", "run", "src/QuizCraft.py", "--server.port=8501", "--server.address=0.0.0.0"]

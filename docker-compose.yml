@@ -1,20 +1,26 @@
-services:
-  ollama:
-    image: ollama/ollama:latest  # Use the latest Ollama image
-    build:
-      context: .  # Ensure this path includes start_ollama.sh in the context
-    command: /bin/sh /app/start_ollama.sh  # Use the start_ollama.sh script to start Ollama
-    ports:
-      - "11434:11434"  # Expose Ollama's communication port for Streamlit
-    restart: unless-stopped
+version: '3.8'
 
+services:
   streamlit:
-    build: .  # Build the Streamlit container from Dockerfile
+    build: .  # Build the Streamlit container from the local Dockerfile
     ports:
-      - "8501:8501"  # Expose the Streamlit port
+      - "8501:8501"  # Expose Streamlit port
     environment:
-      - OLLAMA_HOST=http://ollama:11434  # Point Streamlit to Ollama service
+      - OLLAMA_HOST=http://ollama:11434  # Set the Ollama host
     depends_on:
       - ollama  # Ensure Ollama is up before Streamlit starts
     restart: unless-stopped
-    entrypoint: ["ollama:11434", "--", "streamlit", "run", "src/QuizCraft.py"]
+
+  ollama:
+    image: ollama/ollama:latest  # Use the latest Ollama image
+    build:
+      context: .  # Include start_ollama.sh in the context
+    command: /bin/sh /app/start_ollama.sh  # Use the start_ollama.sh script to start Ollama
+    ports:
+      - "11434:11434"  # Expose Ollama's communication port
+    volumes:
+      - ollama_models:/root/.ollama/models  # Persist downloaded models
+    restart: unless-stopped
+
+volumes:
+  ollama_models:  # Named volume to store Ollama's models

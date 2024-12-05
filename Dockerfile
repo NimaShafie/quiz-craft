@@ -13,13 +13,14 @@ RUN apt-get update && apt-get install -y \
     tar \
     libstdc++6 \
     procps \
-    && apt-get clean
+    bash && apt-get clean
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose the Streamlit and Ollama default ports
 EXPOSE 8501
+EXPOSE 11434
 
 # Start Streamlit after Ollama is ready
 CMD ["streamlit", "run", "src/QuizCraft.py", "--server.port=8501", "--server.address=0.0.0.0"]

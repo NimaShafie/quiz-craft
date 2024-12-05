@@ -1,26 +1,32 @@
-version: '3.8'
-
 services:
   streamlit:
-    build: .  # Build the Streamlit container from the local Dockerfile
+    build: .  # Build from the local Dockerfile
     ports:
       - "8501:8501"  # Expose Streamlit port
     environment:
-      - OLLAMA_HOST=http://ollama:11434  # Set the Ollama host
+      - OLLAMA_HOST=http://ollama:11434  # Point Streamlit to the Ollama host
     depends_on:
-      - ollama  # Ensure Ollama is up before Streamlit starts
+      - ollama  # Ensure Ollama starts first
     restart: unless-stopped
+    networks:
+      - app_network
 
   ollama:
-    image: ollama/ollama:latest  # Use the latest Ollama image
-    build:
-      context: .  # Include start_ollama.sh in the context
-    command: /bin/sh /app/start_ollama.sh  # Use the start_ollama.sh script to start Ollama
+    image: ollama/ollama  # Use the official Ollama image
+    container_name: ollama_in_streamlit  # Name the container for easier referencing
+    command: ["serve"]  # Use the custom start script
     ports:
-      - "11434:11434"  # Expose Ollama's communication port
+      - "11434:11434"  # Expose Ollama's API port
     volumes:
-      - ollama_models:/root/.ollama/models  # Persist downloaded models
-    restart: unless-stopped
+      - ollama_models:/root/.ollama/models  # Persist Ollama's models
+      - ./start_ollama.sh:/app/start_ollama.sh  # Mount the custom start script
+    restart: no
+    networks:
+      - app_network
 
 volumes:
-  ollama_models:  # Named volume to store Ollama's models
+  ollama_models:  # Named volume for model storage
+
+networks:
+  app_network:
+    driver: bridge

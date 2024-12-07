@@ -1,3 +1,11 @@
+As a user I want to be able to upload a text file to automatically generate quizzes from and not have to wait long for the quiz to be generated.
+
+Acceptance Criteria:
+1.Application must be able to allow a file to be uploaded
+2.Application must allow for different types of text file type systems.
+3.Application must take no longer than 10 minutes to generate a quiz
+
+
 Test Case #1
 Test to see PDF files are accepted.
 

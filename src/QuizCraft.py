@@ -74,8 +74,7 @@ def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt,
             print("Successfully reached generate_quiz_from_prompt.py")
         else:
             print("Script executed but no confirmation message found.")
-
-            print("Script Output:\n", result.stdout)
+            # print("Script Output:\n", result.stdout)
             print("Error (if any):\n", result.stderr)
 
     except subprocess.TimeoutExpired as e:
@@ -85,7 +84,7 @@ def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt,
     except Exception as e:
         print("An error occurred:", str(e))
 
-    print(f"\nRaw result.stdout: {repr(result.stdout)}")  # Debug output
+    # print(f"\nRaw result.stdout: {repr(result.stdout)}")  # Debug output
 
     # Clean up result.stdout: Strip unnecessary whitespace and newlines
     cleaned_stdout = result.stdout.strip()
@@ -94,7 +93,7 @@ def run_generate_quiz_script(number_of_questions, difficulty_level, user_prompt,
     match = re.search(r'(\{.*\})', cleaned_stdout, re.DOTALL)  # re.DOTALL allows '.' to match newlines
     if match:
         json_data = match.group(1)
-        print(f"\n\nCleaned JSON data: {repr(json_data)}")  # Debugging the extracted JSON data
+        # print(f"\n\nCleaned JSON data: {repr(json_data)}")  # Debugging the extracted JSON data
 
         # Try parsing the extracted JSON
         try:
@@ -158,7 +157,7 @@ def format_quiz_as_text(quiz_data):
     question_number = 1
     for quiz in quiz_data.get("quiz", []):
         options = quiz.get('options', [])
-        correct_answer = quiz.get('answer', "").strip()  # Default to an empty string if no answer is provided
+        correct_answer = quiz.get('answer', "")  # Default to an empty string if no answer is provided
         question_type = quiz.get('type', '').strip().lower()  # Normalize type to lowercase and strip spaces
 
         # Handle the correct answer display for different question types
@@ -241,7 +240,6 @@ st.markdown('<div class="container-with-border">', unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Upload your TXT or PDF file here",
                                     type=["txt", "pdf"], help="Upload a TXT or PDF file")
 
-# st.divider()
 st.write("<center>OR</center>", unsafe_allow_html=True)
 
 # Text input area inside the bordered container
@@ -255,11 +253,6 @@ with st.form(key="quiz_form"):
 
     # Enable button only if file is uploaded
     submit_button_disabled = not file_uploaded  # Disable button if no file uploaded
-
-    # User will be able to select the number of questions for each type
-    # Based on what available question types were selected above
-    # #input fields
-    # mcq_count=st.number_input("No. of MCQs: ", min_value=3, max_value=50, placeholder= "10")
 
     col1, col2, = st.columns(2, gap="large")
     
@@ -315,7 +308,6 @@ with st.form(key="quiz_form"):
 
 # Generate quiz if submit button is clicked
 if submit:
-    # validate_user_input(user_prompt)
     generate_quiz(number_of_questions, difficulty_level, user_prompt, question_types)
     st.success("Quiz generated!")
 
@@ -351,4 +343,4 @@ if st.session_state.quiz_generated:
 
     # debug to write out the quiz data without downloading it
     # Optionally display the formatted quiz
-    st.write(formatted_quiz)
+    # st.write(formatted_quiz)

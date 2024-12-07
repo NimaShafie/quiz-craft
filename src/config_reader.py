@@ -8,8 +8,7 @@ Date created 12 Jun 2024
 import configparser
 import os
 
-
-#Function to read a config INI file.
+#Function to read a config INI file
 def fetch_config_dict(file_path = "config.ini", section=None):
     """
     Convert INI file to a dictionary.
@@ -39,6 +38,3 @@ def fetch_config_dict(file_path = "config.ini", section=None):
                 config_dict[option] = value
     
     return config_dict
-
-
-#print(fetch_config_dict(section = 'DIRECTORIES_TASK_1'))

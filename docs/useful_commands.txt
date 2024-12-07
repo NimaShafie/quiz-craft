@@ -52,4 +52,3 @@ update the 'requirements.txt' file with new dependecies by running the command
 pip freeze > requirements.txt
 
 
-

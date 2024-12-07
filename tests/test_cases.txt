@@ -1,0 +1,51 @@
+1. Test Empty Submission
+Description: Verify that submitting without selecting any answers displays an error or appropriate message.
+Expected Outcome: An error message like "Please answer all questions" appears, and no score is calculated.
+
+2. Test Submit Button State
+Description: Ensure the submit button is disabled until all questions are answered.
+Expected Outcome: Submit button is enabled only after all answers are provided.
+
+3. Test Reset Quiz
+Description: Verify that clicking a reset button clears all answers and feedback.
+Expected Outcome: All selected answers and feedback are cleared; the quiz returns to its initial state.
+
+4. Test Zero Score
+Description: Verify that a user receives a score of zero if all answers are incorrect.
+Expected Outcome: The score is 0.
+
+5. Test Full Score
+Description: Verify that a user receives a full score if all answers are correct.
+Expected Outcome: The score equals the total number of questions.
+
+6. Test Feedback Display Order
+Description: Verify that feedback for incorrect answers is displayed in the same order as the quiz questions.
+Expected Outcome: Feedback follows the same order as the questions.
+
+7. Test Large Number of Questions
+Description: Verify that the quiz functions correctly with a large number of questions (e.g., 100+).
+Expected Outcome: The application remains responsive, and the correct score/feedback is displayed.
+
+8. Test Submission with All Correct Answers
+Description: Verify the quiz accepts a fully correct submission.
+Expected Outcome: The user gets a full score, and no incorrect answers are highlighted.
+
+9. Test Submission with Some Incorrect Answers
+Description: Verify the quiz highlights only the incorrect answers and provides the correct answers.
+Expected Outcome: Feedback lists the correct options for the questions answered incorrectly.
+
+10. Test Submission with All Incorrect Answers
+Description: Verify the quiz provides correct answers for all questions.
+Expected Outcome: Feedback lists correct answers for all questions, and the score is 0.
+
+11. Test Submission with Unanswered Questions
+Description: Verify that unanswered questions are treated as incorrect and do not affect the other questions.
+Expected Outcome: Score reflects only the answered questions, and feedback highlights unanswered questions with correct answers.
+
+12. Check there are no duplicate questions
+Descriptions: No two or more questions should be the same.
+Expected Outcome: The quiz should tell us there is a repetition in the questions with the question numbers.
+
+13. Test Option Selection Limit
+Description: For single-answer MCQs, verify that users can select only one option per question.
+Expected Outcome: Selecting a new option deselects the previous one.

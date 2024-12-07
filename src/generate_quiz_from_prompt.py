@@ -26,7 +26,7 @@ def generate_quiz(number_of_questions="5", difficulty="easy", user_prompt="", qu
     config_dict = fetch_config_dict()
     # Initialize the LLM    
     llm = Ollama(config_dict.get("model_name", "advanced_model"),
-                 temperature=0.6, json_mode=True)
+                 temperature=0.6, request_timeout=120, json_mode=True)
     
     # Sample prompt
     prompt = f"""
@@ -73,7 +73,7 @@ def generate_quiz(number_of_questions="5", difficulty="easy", user_prompt="", qu
         return {"quiz": quiz_data}
     
     except json.JSONDecodeError as e:
-        print(f"JSONDecodeError: {e}")
+        print(f"(From 'generate_quiz_from_prompt': JSONDecodeError: {e}")
         return {"quiz": []}
 
 # Main function
@@ -88,7 +88,13 @@ def main():
     question_types = sys.argv[4].split(",")  # Expecting a comma-separated string of question types
 
     # Call the blocking version of generate_quiz (no async)
-    generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
+    response = generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
+
+    # if response:
+    #     print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")
+    #     print(f"Printing the json.dumps(response): {json.dumps(response)}")
+    # else:
+    #     print("Failed to generate quiz")
 
 if __name__ == "__main__":
     main()

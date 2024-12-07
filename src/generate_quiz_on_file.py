@@ -20,7 +20,7 @@ from llama_index.readers.file import PDFReader
 from llama_index.extractors.entity import EntityExtractor
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.ingestion import IngestionPipeline
-from config_reader import  fetch_config_dict
+from config_reader import fetch_config_dict
 
 # PERSIST_DIR = './INDEX'
 

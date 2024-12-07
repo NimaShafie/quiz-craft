@@ -1,51 +1,63 @@
-1. Test Empty Submission
-Description: Verify that submitting without selecting any answers displays an error or appropriate message.
-Expected Outcome: An error message like "Please answer all questions" appears, and no score is calculated.
+1. Test Empty Submission  
+Description: Verify that submitting without selecting any answers displays an error or appropriate message.  
+Expected Outcome: An error message like "Please answer all questions" appears, and no score is calculated.  
 
-2. Test Submit Button State
-Description: Ensure the submit button is disabled until all questions are answered.
-Expected Outcome: Submit button is enabled only after all answers are provided.
+2. Test Submit Button State  
+Description: Ensure the submit button is disabled until all questions are answered.  
+Expected Outcome: Submit button is enabled only after all answers are provided.  
 
-3. Test Reset Quiz
-Description: Verify that clicking a reset button clears all answers and feedback.
-Expected Outcome: All selected answers and feedback are cleared; the quiz returns to its initial state.
+3. Test Reset Quiz  
+Description: Verify that clicking a reset button clears all answers and feedback.  
+Expected Outcome: All selected answers and feedback are cleared; the quiz returns to its initial state.  
 
-4. Test Zero Score
-Description: Verify that a user receives a score of zero if all answers are incorrect.
-Expected Outcome: The score is 0.
+4. Test Zero Score  
+Description: Verify that a user receives a score of zero if all answers are incorrect.  
+Expected Outcome: The score is 0.  
 
-5. Test Full Score
-Description: Verify that a user receives a full score if all answers are correct.
-Expected Outcome: The score equals the total number of questions.
+5. Test Full Score  
+Description: Verify that a user receives a full score if all answers are correct.  
+Expected Outcome: The score equals the total number of questions.  
 
-6. Test Feedback Display Order
-Description: Verify that feedback for incorrect answers is displayed in the same order as the quiz questions.
-Expected Outcome: Feedback follows the same order as the questions.
+6. Test Feedback Display Order  
+Description: Verify that feedback for incorrect answers is displayed in the same order as the quiz questions.  
+Expected Outcome: Feedback follows the same order as the questions.  
 
-7. Test Large Number of Questions
-Description: Verify that the quiz functions correctly with a large number of questions (e.g., 100+).
-Expected Outcome: The application remains responsive, and the correct score/feedback is displayed.
+7. Test Large Number of Questions  
+Description: Verify that the quiz functions correctly with a large number of questions (e.g., 100+).  
+Expected Outcome: The application remains responsive, and the correct score/feedback is displayed.  
 
-8. Test Submission with All Correct Answers
-Description: Verify the quiz accepts a fully correct submission.
-Expected Outcome: The user gets a full score, and no incorrect answers are highlighted.
+8. Test Submission with All Correct Answers  
+Description: Verify the quiz accepts a fully correct submission.  
+Expected Outcome: The user gets a full score, and no incorrect answers are highlighted.  
 
-9. Test Submission with Some Incorrect Answers
-Description: Verify the quiz highlights only the incorrect answers and provides the correct answers.
-Expected Outcome: Feedback lists the correct options for the questions answered incorrectly.
+9. Test Feedback for Mixed Answers  
+Description: Verify that feedback accurately highlights incorrect answers, unanswered questions, and shows the correct answers.  
+Expected Outcome: Feedback lists incorrect answers, correct answers, and flags unanswered questions.  
 
-10. Test Submission with All Incorrect Answers
-Description: Verify the quiz provides correct answers for all questions.
-Expected Outcome: Feedback lists correct answers for all questions, and the score is 0.
+10. Test Option Selection Limit  
+Description: For single-answer MCQs, verify that users can select only one option per question.  
+Expected Outcome: Selecting a new option deselects the previous one.  
 
-11. Test Submission with Unanswered Questions
-Description: Verify that unanswered questions are treated as incorrect and do not affect the other questions.
-Expected Outcome: Score reflects only the answered questions, and feedback highlights unanswered questions with correct answers.
+11. Test Multiple Browser Compatibility  
+Description: Verify the quiz works as expected on various browsers (e.g., Chrome, Firefox, Edge).  
+Expected Outcome: The quiz performs consistently across all supported browsers.  
 
-12. Check there are no duplicate questions
-Descriptions: No two or more questions should be the same.
-Expected Outcome: The quiz should tell us there is a repetition in the questions with the question numbers.
+12. Test Accessibility Features  
+Description: Verify the quiz complies with accessibility standards (e.g., keyboard navigation, screen readers).  
+Expected Outcome: The quiz is accessible using keyboard shortcuts and compatible with screen readers.  
 
-13. Test Option Selection Limit
-Description: For single-answer MCQs, verify that users can select only one option per question.
-Expected Outcome: Selecting a new option deselects the previous one.
+13. Test Mobile Responsiveness  
+Description: Verify the quiz displays correctly on mobile devices with various screen sizes.  
+Expected Outcome: The layout adapts seamlessly to different screen sizes, maintaining usability.  
+
+14. Test Error for Invalid Input  
+Description: Verify that entering invalid input (e.g., through browser dev tools) does not affect the quiz results.  
+Expected Outcome: Invalid input is ignored, and the quiz continues to function correctly.  
+
+15. Test Edge Cases in Question Text  
+Description: Verify that long question text, special characters, or HTML in the questions or options are displayed correctly.  
+Expected Outcome: Question text is displayed without truncation or rendering issues.  
+
+16. Check There Are No Duplicate Questions  
+Description: Verify no two or more questions in the quiz are identical.  
+Expected Outcome: A message is displayed if duplicate questions are detected, highlighting the question numbers.  

@@ -88,7 +88,7 @@ def main():
     question_types = sys.argv[4].split(",")  # Expecting a comma-separated string of question types
 
     # Call the blocking version of generate_quiz (no async)
-    response = generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
+    generate_quiz(number_of_questions, difficulty, user_prompt, question_types)
 
     # if response:
     #     print("(generate_quiz_from_prompt.py): Quiz generated successfully\n")

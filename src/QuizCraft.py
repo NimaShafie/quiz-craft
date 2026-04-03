@@ -211,11 +211,21 @@ hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 
 
 /* Quiz mode question card */
 .quiz-question-card {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(15,25,40,0.7);
+    border: 1px solid rgba(201,79,53,0.25);
+    border-radius: 14px 14px 0 0;
+    padding: 1.2rem 1.6rem 1rem 1.6rem;
+    margin: 0.8rem 0 0 0;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+}
+/* Style the container holding quiz card + answers as one unit */
+[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"]:has(.quiz-question-card) {
+    background: rgba(15,25,40,0.5);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 14px;
-    padding: 1.4rem 1.6rem;
-    margin: 0.8rem 0;
+    padding: 0 0 1rem 0;
+    backdrop-filter: blur(8px);
 }
 .quiz-q-number {
     font-size: 0.78rem; color: #dc6e50;
@@ -754,15 +764,17 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
             if idx < len(takeable):
                 q = takeable[idx]
                 progress_val = idx / len(takeable)
+                with st.container():
                 st.html(f'''<div class="quiz-question-card">
-            <div class="quiz-q-number">Question {idx + 1} of {len(takeable)}</div>
-            <div class="quiz-q-text">{q["question"]}</div>
-        </div>''')
+                    <div class="quiz-q-number">Question {idx + 1} of {len(takeable)}</div>
+                    <div class="quiz-q-text">{q["question"]}</div>
+                </div>''')
                 st.progress(progress_val)
+                st.html('<div style="height:0.5rem"></div>')
 
                 opts = q.get("options", ["True", "False"])
+                already_answered = idx in st.session_state.answers
                 for opt in opts:
-                    already_answered = idx in st.session_state.answers
                     if already_answered:
                         correct_answer = q.get("answer", "")
                         answer_clean = correct_answer.split(". ", 1)[-1] if ". " in correct_answer else correct_answer
@@ -773,17 +785,18 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
                         elif is_chosen:
                             st.error(f"✗  {opt}")
                         else:
-                            st.write(f"   {opt}")
+                            st.html(f'<div style="padding:0.4rem 0.8rem;color:#6a8090;font-size:0.92rem;">{opt}</div>')
                     else:
-                        if st.button(opt, key=f"opt_{idx}_{opt}"):
+                        if st.button(opt, key=f"opt_{idx}_{opt}", use_container_width=True):
                             st.session_state.answers[idx] = opt
                             st.rerun()
 
-                if idx in st.session_state.answers:
+                if already_answered:
+                    st.html('<div style="height:0.4rem"></div>')
                     col_next, _ = st.columns([1, 3])
                     with col_next:
                         next_label = "Finish" if idx + 1 >= len(takeable) else "Next"
-                        if st.button(next_label, key="next_q"):
+                        if st.button(next_label, key="next_q", type="primary"):
                             if idx + 1 >= len(takeable):
                                 st.session_state.show_results = True
                             else:

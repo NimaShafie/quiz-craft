@@ -40,11 +40,11 @@ LOGO_PATH  = os.path.join(SCRIPT_DIR, "..", "images", "logo", "quiz-craft-logo.p
 GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 
 st.html("""<style>
-[alt=Logo] { height: 10rem; }
+[alt=Logo] { height: 8rem; }
+[data-testid="stSidebarHeader"] { overflow: visible !important; min-height: 9rem !important; }
 </style>""")
 
-if os.path.exists(LOGO_PATH):
-    st.logo(image=LOGO_PATH, size="large")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Session state

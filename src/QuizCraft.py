@@ -38,13 +38,26 @@ GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 # ─────────────────────────────────────────────────────────────────────────────
 # Styling
 # ─────────────────────────────────────────────────────────────────────────────
-st.html("""<style>
-[alt=Logo] { height: 10rem; }
-.stAlert { border-radius: 8px; }
-</style>""")
-
 if os.path.exists(LOGO_PATH):
-    st.logo(image=LOGO_PATH, size="large")
+    import base64
+    with open(LOGO_PATH, "rb") as _f:
+        _logo_b64 = base64.b64encode(_f.read()).decode()
+    st.html(f"""<style>
+.stAlert {{ border-radius: 8px; }}
+#quizcraft-logo {{
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 160px;
+    z-index: 999999;
+    pointer-events: none;
+}}
+</style>
+<img id="quizcraft-logo" src="data:image/png;base64,{_logo_b64}" />""")
+else:
+    st.html("""<style>.stAlert { border-radius: 8px; }</style>""")
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Session state init

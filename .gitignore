@@ -21,8 +21,8 @@ data/*.txt
 # Ollama index (generated at runtime)
 INDEX/
 
-# IDE — never commit editor-specific settings
-.vscode/
+# IDE
+.vscode/settings.json
 .idea/
 
 # OS

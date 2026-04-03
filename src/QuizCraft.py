@@ -21,6 +21,21 @@ import hashlib
 import streamlit as st
 from fpdf import FPDF
 from dataclasses import dataclass, field
+import logging
+import traceback
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging setup — errors go to file, not the UI
+# ─────────────────────────────────────────────────────────────────────────────
+_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join(_LOG_DIR, "quizcraft.log"),
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+_logger = logging.getLogger("quizcraft")
 from collections import defaultdict
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -191,10 +206,12 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
             capture_output=True, text=True, timeout=180,
         )
     except subprocess.TimeoutExpired:
+        _logger.warning("Quiz generation timed out (n=%s, difficulty=%s)", n_questions, difficulty)
         st.session_state.last_error = "Quiz generation timed out. Try fewer questions or a smaller model."
         return None
     except Exception as e:
-        st.session_state.last_error = f"Subprocess error: {e}"
+        _logger.error("Subprocess error: %s\n%s", e, traceback.format_exc())
+        st.session_state.last_error = "An unexpected error occurred. Please try again."
         return None
 
     match = re.search(r"(\{[\s\S]*\})", result.stdout)
@@ -252,8 +269,10 @@ def generate_quiz_pdf(quiz_text: str) -> bytes:
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     for line in quiz_text.split("\n"):
-        pdf.multi_cell(0, 8, line)
-    return pdf.output(dest="S").encode("latin1")
+        # Strip non-latin1 characters to prevent encoding errors
+        safe_line = line.encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(0, 8, safe_line)
+    return bytes(pdf.output())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UI
@@ -338,7 +357,7 @@ with st.form(key="quiz_form"):
         st.error("🚫 You've reached the hourly limit. Please come back later.")
 
     disable = not has_input or has_both or not has_types or no_quota
-    submit = st.form_submit_button("🚀 Generate Quiz", disabled=disable, use_container_width=True)
+    submit = st.form_submit_button("🚀 Generate Quiz", disabled=disable, use_container_width=True, type="primary")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Generation
@@ -367,7 +386,9 @@ if submit:
         st.stop()
 
     with st.status("Generating quiz...", expanded=True) as status:
-        st.write(f"🤖 Asking Ollama to create a **{difficulty}** {n_questions}-question quiz...")
+        st.write(f"🤖 Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
+        st.write("⏳ This takes 15-30 seconds on CPU — please wait...")
+        st.progress(0.3, text="Sending request to Ollama...")
         quiz_data = run_generate_quiz(n_questions, difficulty, safe_prompt, question_types)
         if quiz_data:
             if HOSTED_MODE:
@@ -388,15 +409,22 @@ if st.session_state.last_error:
 if st.session_state.quiz_generated and st.session_state.quiz_data:
     st.markdown("---")
     formatted = format_quiz_as_text(st.session_state.quiz_data)
-    pdf_bytes  = generate_quiz_pdf(formatted)
+    try:
+        pdf_bytes = generate_quiz_pdf(formatted)
+    except Exception as e:
+        _logger.error("PDF generation error: %s\n%s", e, traceback.format_exc())
+        pdf_bytes = None
 
     col_pdf, col_txt = st.columns(2)
     with col_pdf:
-        st.download_button(
-            label="⬇️ Download PDF", data=pdf_bytes,
-            file_name="quiz.pdf", mime="application/pdf",
-            use_container_width=True,
-        )
+        if pdf_bytes:
+            st.download_button(
+                label="⬇️ Download PDF", data=pdf_bytes,
+                file_name="quiz.pdf", mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            st.warning("⚠️ PDF export unavailable (text contains unsupported characters). Use TXT download instead.")
     with col_txt:
         st.download_button(
             label="⬇️ Download TXT", data=formatted,

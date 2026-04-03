@@ -8,6 +8,9 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: quizcraft_ollama
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_KEEP_ALIVE=5m
     ports:
       - "11434:11434"
     volumes:
@@ -73,9 +76,10 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=gemma3:4b
+      - HOSTED_MODE=true
     depends_on:
       - ollama
-    command: streamlit run src/QuizCraft_hosted.py --server.port=8502 --server.address=0.0.0.0
+    command: streamlit run src/QuizCraft.py --server.port=8502 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
       - quizcraft_net

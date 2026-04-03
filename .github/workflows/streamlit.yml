@@ -1,4 +1,4 @@
-name: Streamlit Smoke Test
+name: Streamlit app
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  streamlit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,9 +20,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
+      
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: |
+          pip install -r requirements.txt
 
-      - name: Run offline unit tests
-        run: python -m pytest tests/test_quizcraft.py -v
+      - name: Streamlit app
+        uses: streamlit/streamlit-app-action@v0.0.3
+        with:
+          app-path: src/QuizCraft.py
+          ruff: true

@@ -765,12 +765,13 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
                 q = takeable[idx]
                 progress_val = idx / len(takeable)
                 with st.container():
-                st.html(f'''<div class="quiz-question-card">
-                    <div class="quiz-q-number">Question {idx + 1} of {len(takeable)}</div>
-                    <div class="quiz-q-text">{q["question"]}</div>
-                </div>''')
-                st.progress(progress_val)
-                st.html('<div style="height:0.5rem"></div>')
+                    # These three lines must be indented to stay inside the container
+                    st.html(f'''<div class="quiz-question-card">
+                        <div class="quiz-q-number">Question {idx + 1} of {len(takeable)}</div>
+                        <div class="quiz-q-text">{q["question"]}</div>
+                    </div>''')
+                    st.progress(progress_val)
+                    st.html('<div style="height:0.5rem"></div>')
 
                 opts = q.get("options", ["True", "False"])
                 already_answered = idx in st.session_state.answers

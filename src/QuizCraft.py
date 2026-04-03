@@ -306,22 +306,22 @@ Edit `config.ini` to change the model.
 
 st.markdown("---")
 
-uploaded_file = st.file_uploader(
-    "📎 Upload a TXT or PDF file",
-    type=["txt", "pdf"],
-    help=f"Max ~{MAX_PROMPT_CHARS} characters will be used as context.",
-)
-
-st.write("<center style='color:#888;padding:4px'>— OR —</center>", unsafe_allow_html=True)
-
-user_prompt = st.text_area(
-    "✍️ Enter a topic or paste text",
-    height=160,
-    max_chars=MAX_PROMPT_CHARS,
-    placeholder="e.g. 'World War II causes and effects' or paste any text...",
-)
-
 with st.form(key="quiz_form"):
+    uploaded_file = st.file_uploader(
+        "📎 Upload a TXT or PDF file",
+        type=["txt", "pdf"],
+        help=f"Max ~{MAX_PROMPT_CHARS} characters will be used as context.",
+    )
+
+    st.write("<center style='color:#888;padding:4px'>— OR —</center>", unsafe_allow_html=True)
+
+    user_prompt = st.text_area(
+        "✍️ Enter a topic or paste text",
+        height=160,
+        max_chars=MAX_PROMPT_CHARS,
+        placeholder="e.g. 'World War II causes and effects' or paste any text...",
+    )
+
     col1, col2 = st.columns(2, gap="large")
     with col1:
         question_types = st.multiselect(

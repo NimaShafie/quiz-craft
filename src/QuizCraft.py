@@ -33,9 +33,8 @@ RATE_LIMIT_WINDOW_SEC = 3600
 COOLDOWN_SEC          = 15
 
 TOPIC_SUGGESTIONS = [
-    "World War II", "Human anatomy", "Python programming",
-    "The French Revolution", "Climate change", "Solar system",
-    "Ancient Rome", "Machine learning basics",
+    "World War II", "Human anatomy", "Python basics", "Climate change",
+    "Ancient Rome", "Solar system", "Cell biology", "World geography",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -487,11 +486,11 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 # UI — Topic suggestions
 # ─────────────────────────────────────────────────────────────────────────────
-st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.4rem;">Quick topics</p>')
-cols = st.columns(len(TOPIC_SUGGESTIONS))
+st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.5rem;">Quick topics</p>')
+_topic_cols = st.columns(4)
 for i, topic in enumerate(TOPIC_SUGGESTIONS):
-    with cols[i]:
-        if st.button(topic, key=f"topic_{i}"):
+    with _topic_cols[i % 4]:
+        if st.button(topic, key=f"topic_{i}", use_container_width=True):
             st.session_state.topic_suggestion = topic
             st.rerun()
 

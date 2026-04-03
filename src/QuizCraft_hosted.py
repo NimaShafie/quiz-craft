@@ -39,10 +39,18 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH  = os.path.join(SCRIPT_DIR, "..", "images", "logo", "quiz-craft-logo.png")
 GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 
-st.html("""<style>
-[alt=Logo] { height: 8rem; }
-[data-testid="stSidebarHeader"] { overflow: visible !important; min-height: 9rem !important; }
-</style>""")
+import base64 as _b64
+_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "images", "logo", "quiz-craft-logo.png")
+if os.path.exists(_logo_path):
+    with open(_logo_path, "rb") as _f:
+        _logo_data = _b64.b64encode(_f.read()).decode()
+    st.html("""<style>
+.stAlert { border-radius: 8px; }
+#qc-logo { display: block; margin: -2rem auto -1rem auto; width: 150px; }
+</style>
+<div><img id="qc-logo" src="data:image/png;base64,""" + _logo_data + """" /></div>""")
+else:
+    st.html("""<style>.stAlert { border-radius: 8px; }</style>""")
 
 
 

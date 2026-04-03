@@ -613,11 +613,11 @@ st.markdown("---")
 # UI — Topic suggestions
 # ─────────────────────────────────────────────────────────────────────────────
 st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.4rem;">Quick topics</p>')
-cols = st.columns(len(TOPIC_SUGGESTIONS))
-for i, topic in enumerate(TOPIC_SUGGESTIONS):
-    with cols[i]:
-        if st.button(topic, key=f"topic_{i}"):
-            st.session_state.topic_suggestion = topic
+_topic_cols = st.columns(4)
+for i, _topic in enumerate(TOPIC_SUGGESTIONS):
+    with _topic_cols[i % 4]:
+        if st.button(_topic, key=f"topic_{i}", use_container_width=True):
+            st.session_state.topic_suggestion = _topic
             st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────

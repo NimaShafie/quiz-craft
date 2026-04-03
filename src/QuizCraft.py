@@ -18,33 +18,19 @@ import os
 import time
 import subprocess
 import hashlib
+import logging
+import traceback
 import streamlit as st
 from fpdf import FPDF
 from dataclasses import dataclass, field
-import logging
-import traceback
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Logging setup — errors go to file, not the UI
-# ─────────────────────────────────────────────────────────────────────────────
-_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
-os.makedirs(_LOG_DIR, exist_ok=True)
-logging.basicConfig(
-    filename=os.path.join(_LOG_DIR, "quizcraft.log"),
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-_logger = logging.getLogger("quizcraft")
-from collections import defaultdict
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Mode detection — single env var controls everything
+# Mode detection
 # ─────────────────────────────────────────────────────────────────────────────
 HOSTED_MODE = os.environ.get("HOSTED_MODE", "").lower() in ("true", "1", "yes")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Config — hosted mode uses tighter limits
+# Config
 # ─────────────────────────────────────────────────────────────────────────────
 MAX_QUESTIONS    = 20   if HOSTED_MODE else 40
 MAX_PROMPT_CHARS = 2000 if HOSTED_MODE else 3500
@@ -72,20 +58,257 @@ LOGO_PATH  = os.path.join(SCRIPT_DIR, "..", "images", "logo", "quiz-craft-logo.p
 GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Styling + Logo
+# Logging
+# ─────────────────────────────────────────────────────────────────────────────
+_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    filename=os.path.join(_LOG_DIR, "quizcraft.log"),
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+_logger = logging.getLogger("quizcraft")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Styling + Logo + Theme
 # ─────────────────────────────────────────────────────────────────────────────
 import base64 as _b64
-_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "images", "logo", "quiz-craft-logo.png")
+_logo_path = os.path.join(SCRIPT_DIR, "..", "images", "logo", "quiz-craft-logo.png")
+
+_THEME_CSS = """
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Base ── */
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+}
+
+/* ── Page background ── */
+.stApp {
+    background: linear-gradient(160deg, #0f1923 0%, #1a2535 60%, #0f1923 100%);
+}
+
+/* ── Hide Streamlit chrome ── */
+#MainMenu, footer, header { visibility: hidden; }
+.stDeployButton { display: none; }
+
+/* ── Main content area ── */
+.block-container {
+    padding-top: 1rem !important;
+    max-width: 780px !important;
+}
+
+/* ── Logo ── */
+#qc-logo {
+    display: block;
+    margin: -2rem auto -1rem auto;
+    width: 150px;
+    filter: drop-shadow(0 4px 24px rgba(220,80,80,0.25));
+}
+
+/* ── Title ── */
+h1 {
+    font-family: 'Playfair Display', serif !important;
+    font-size: 2.6rem !important;
+    font-weight: 700 !important;
+    background: linear-gradient(135deg, #f5f0e8 30%, #e8927c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+    margin-bottom: 0 !important;
+}
+
+/* ── Caption / subtitle ── */
+.stCaption p {
+    color: #8fa3b8 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.3px;
+}
+
+/* ── Divider ── */
+hr {
+    border-color: rgba(255,255,255,0.07) !important;
+    margin: 0.8rem 0 1.2rem 0 !important;
+}
+
+/* ── Form card ── */
+[data-testid="stForm"] {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(255,255,255,0.09) !important;
+    border-radius: 16px !important;
+    padding: 1.6rem 1.8rem !important;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+
+/* ── File uploader ── */
+[data-testid="stFileUploader"] {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1.5px dashed rgba(255,255,255,0.15) !important;
+    border-radius: 10px !important;
+    padding: 0.4rem 0.8rem !important;
+    transition: border-color 0.2s;
+}
+[data-testid="stFileUploader"]:hover {
+    border-color: rgba(220,130,100,0.5) !important;
+}
+
+/* ── Text area ── */
+[data-testid="stTextArea"] textarea {
+    background: rgba(255,255,255,0.04) !important;
+    border: 1.5px solid rgba(255,255,255,0.1) !important;
+    border-radius: 10px !important;
+    color: #e8e4dc !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+[data-testid="stTextArea"] textarea:focus {
+    border-color: rgba(220,130,100,0.6) !important;
+    box-shadow: 0 0 0 3px rgba(220,130,100,0.1) !important;
+}
+
+/* ── OR separator ── */
+.or-sep {
+    text-align: center;
+    color: #4a6070;
+    font-size: 0.78rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 0.6rem 0;
+    position: relative;
+}
+
+/* ── Segmented control (difficulty) ── */
+[data-testid="stSegmentedControl"] {
+    background: rgba(255,255,255,0.05) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* ── Slider ── */
+[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+    background: #dc6e50 !important;
+    border-color: #dc6e50 !important;
+}
+
+/* ── Generate button ── */
+[data-testid="stFormSubmitButton"] button {
+    background: linear-gradient(135deg, #c94f35 0%, #e0714f 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: white !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.3px !important;
+    padding: 0.65rem 1.5rem !important;
+    transition: transform 0.15s, box-shadow 0.15s !important;
+    box-shadow: 0 4px 20px rgba(201,79,53,0.35) !important;
+}
+[data-testid="stFormSubmitButton"] button:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 28px rgba(201,79,53,0.5) !important;
+}
+[data-testid="stFormSubmitButton"] button:disabled {
+    background: rgba(255,255,255,0.08) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    color: rgba(255,255,255,0.3) !important;
+}
+
+/* ── Download buttons ── */
+[data-testid="stDownloadButton"] button {
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+    color: #c8d8e8 !important;
+    font-family: 'DM Sans', sans-serif !important;
+    transition: background 0.15s, border-color 0.15s !important;
+}
+[data-testid="stDownloadButton"] button:hover {
+    background: rgba(255,255,255,0.1) !important;
+    border-color: rgba(255,255,255,0.25) !important;
+}
+
+/* ── Expander (setup + preview) ── */
+[data-testid="stExpander"] {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
+}
+[data-testid="stExpander"] summary {
+    color: #8fa3b8 !important;
+    font-size: 0.9rem !important;
+}
+
+/* ── Alerts ── */
+.stAlert {
+    border-radius: 10px !important;
+    border-left-width: 3px !important;
+    font-size: 0.9rem !important;
+}
+
+/* ── Status box ── */
+[data-testid="stStatus"] {
+    border-radius: 10px !important;
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* ── Multiselect tags ── */
+[data-baseweb="tag"] {
+    background: rgba(201,79,53,0.25) !important;
+    border-color: rgba(201,79,53,0.4) !important;
+    border-radius: 6px !important;
+}
+
+/* ── Labels ── */
+label, .stSelectbox label, [data-testid="stWidgetLabel"] p {
+    color: #a0b4c4 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.3px !important;
+    text-transform: uppercase !important;
+}
+
+/* ── Quiz preview text ── */
+[data-testid="stText"] {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.92rem !important;
+    line-height: 1.7 !important;
+    color: #c8d8e0 !important;
+}
+
+/* ── Quota badge ── */
+.quota-badge {
+    text-align: right;
+    font-size: 0.78rem;
+    margin-top: -10px;
+    margin-bottom: 8px;
+    opacity: 0.85;
+}
+
+/* ── Footer ── */
+.qc-footer {
+    text-align: center;
+    color: #3a5060;
+    font-size: 0.75rem;
+    margin-top: 2rem;
+    letter-spacing: 0.3px;
+}
+.qc-footer a { color: #5a8090; text-decoration: none; }
+</style>
+"""
+
 if os.path.exists(_logo_path):
     with open(_logo_path, "rb") as _f:
         _logo_data = _b64.b64encode(_f.read()).decode()
-    st.html("""<style>
-.stAlert { border-radius: 8px; }
-#qc-logo { display: block; margin: -2rem auto -1rem auto; width: 150px; }
-</style>
-<div><img id="qc-logo" src="data:image/png;base64,""" + _logo_data + """" /></div>""")
+    st.html(_THEME_CSS + '<div><img id="qc-logo" src="data:image/png;base64,' + _logo_data + '" /></div>')
 else:
-    st.html("""<style>.stAlert { border-radius: 8px; }</style>""")
+    st.html(_THEME_CSS)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Rate limiting (hosted mode only)
@@ -121,7 +344,7 @@ def _get_client_ip() -> str:
     except Exception:
         return "unknown"
 
-def check_rate_limit() -> tuple[bool, str]:
+def check_rate_limit() -> tuple:
     if not HOSTED_MODE:
         return True, ""
     ip = _get_client_ip()
@@ -150,7 +373,7 @@ def record_request():
     _ip_store[ip].timestamps.append(now)
     _ip_store[ip].last_request = now
 
-def get_remaining_quota() -> tuple[int, int]:
+def get_remaining_quota() -> tuple:
     if not HOSTED_MODE:
         return 0, 0
     ip = _get_client_ip()
@@ -160,8 +383,7 @@ def get_remaining_quota() -> tuple[int, int]:
     used = len([t for t in _ip_store[ip].timestamps if now - t < RATE_LIMIT_WINDOW_SEC])
     return used, RATE_LIMIT_REQUESTS
 
-def validate_input(text: str) -> tuple[bool, str, str]:
-    """Returns (is_valid, sanitized_text, warning_msg)."""
+def validate_input(text: str) -> tuple:
     text = text.strip()
     if not text:
         return False, "", "Please enter a topic or paste some text."
@@ -198,7 +420,7 @@ def extract_text_from_file(uploaded_file) -> str:
             return ""
     return ""
 
-def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> dict | None:
+def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> dict:
     types_csv = ",".join(question_types)
     try:
         result = subprocess.run(
@@ -213,7 +435,6 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
         _logger.error("Subprocess error: %s\n%s", e, traceback.format_exc())
         st.session_state.last_error = "An unexpected error occurred. Please try again."
         return None
-
     match = re.search(r"(\{[\s\S]*\})", result.stdout)
     if not match:
         st.session_state.last_error = "Model returned no parseable JSON. Check Ollama is running and a model is pulled."
@@ -221,7 +442,8 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
     try:
         data = json.loads(match.group(1))
     except json.JSONDecodeError as e:
-        st.session_state.last_error = f"JSON parse error: {e}"
+        _logger.error("JSON parse error: %s", e)
+        st.session_state.last_error = "Unexpected response from the model. Please try again."
         return None
     if "error" in data:
         st.session_state.last_error = data["error"]
@@ -269,21 +491,21 @@ def generate_quiz_pdf(quiz_text: str) -> bytes:
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     for line in quiz_text.split("\n"):
-        # Strip non-latin1 characters to prevent encoding errors
         safe_line = line.encode("latin-1", errors="replace").decode("latin-1")
         pdf.multi_cell(0, 8, safe_line)
     return bytes(pdf.output())
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UI
+# UI — Header
 # ─────────────────────────────────────────────────────────────────────────────
 st.title("QuizCraft 🧠📚❓")
+
 if HOSTED_MODE:
     st.caption("AI-powered quiz generator — free to use, powered by Ollama")
     used, total = get_remaining_quota()
     remaining = total - used
-    color = "green" if remaining >= 3 else ("orange" if remaining >= 1 else "red")
-    st.html(f'<div style="text-align:right;font-size:0.82em;color:{color};margin-top:-12px;margin-bottom:8px;">🎟️ {remaining}/{total} quiz generations remaining this hour</div>')
+    color = "#4caf82" if remaining >= 3 else ("#f0a050" if remaining >= 1 else "#e05050")
+    st.html(f'<div class="quota-badge" style="color:{color};">🎟️ {remaining}/{total} generations remaining this hour</div>')
 else:
     st.caption("AI-powered quiz generator — self-hosted with Ollama")
     with st.expander("ℹ️ Setup — first time?", expanded=False):
@@ -291,21 +513,18 @@ else:
 **Requirements:** [Ollama](https://ollama.com) must be running on your machine.
 
 ```bash
-# 1. Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
-
-# 2. Pull the recommended model
 ollama pull gemma3:4b
-
-# 3. Run QuizCraft
 streamlit run src/QuizCraft.py
 ```
-
 Edit `config.ini` to change the model.
 """)
 
 st.markdown("---")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# UI — Form
+# ─────────────────────────────────────────────────────────────────────────────
 with st.form(key="quiz_form"):
     uploaded_file = st.file_uploader(
         "📎 Upload a TXT or PDF file",
@@ -313,11 +532,11 @@ with st.form(key="quiz_form"):
         help=f"Max ~{MAX_PROMPT_CHARS} characters will be used as context.",
     )
 
-    st.write("<center style='color:#888;padding:4px'>— OR —</center>", unsafe_allow_html=True)
+    st.html('<div class="or-sep">— or —</div>')
 
     user_prompt = st.text_area(
         "✍️ Enter a topic or paste text",
-        height=160,
+        height=140,
         max_chars=MAX_PROMPT_CHARS,
         placeholder="e.g. 'World War II causes and effects' or paste any text...",
     )
@@ -335,21 +554,23 @@ with st.form(key="quiz_form"):
         )
 
     n_questions = st.slider(
-        "Number of Questions",
-        min_value=3,
-        max_value=MAX_QUESTIONS,
-        value=10,
-        help=f"Maximum {MAX_QUESTIONS} questions." if HOSTED_MODE else None,
+        "Number of Questions", min_value=3, max_value=MAX_QUESTIONS, value=10,
     )
 
-
-    no_quota = HOSTED_MODE and get_remaining_quota()[0] >= RATE_LIMIT_REQUESTS
+    no_quota  = HOSTED_MODE and get_remaining_quota()[0] >= RATE_LIMIT_REQUESTS
     has_types = bool(question_types)
+
     if no_quota:
         st.error("🚫 You've reached the hourly limit. Please come back later.")
     if not has_types:
         st.warning("⚠️ Please select at least one question type.")
-    submit = st.form_submit_button("🚀 Generate Quiz", disabled=(no_quota or not has_types), use_container_width=True, type="primary")
+
+    submit = st.form_submit_button(
+        "🚀 Generate Quiz",
+        disabled=(no_quota or not has_types),
+        use_container_width=True,
+        type="primary",
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Generation
@@ -358,20 +579,17 @@ if submit:
     st.session_state.quiz_generated = False
     st.session_state.last_error = None
 
-    # Rate limit check (hosted only)
     if HOSTED_MODE:
         allowed, rate_msg = check_rate_limit()
         if not allowed:
             st.error(f"🚫 {rate_msg}")
             st.stop()
 
-    # Resolve input
     raw_prompt = user_prompt.strip()
     if uploaded_file:
         with st.spinner("Reading file..."):
             raw_prompt = extract_text_from_file(uploaded_file)
 
-    # Validate
     is_valid, safe_prompt, warn_msg = validate_input(raw_prompt)
     if not is_valid:
         st.warning(f"⚠️ {warn_msg}")
@@ -416,7 +634,7 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
                 use_container_width=True,
             )
         else:
-            st.warning("⚠️ PDF export unavailable (text contains unsupported characters). Use TXT download instead.")
+            st.warning("⚠️ PDF export unavailable. Use TXT instead.")
     with col_txt:
         st.download_button(
             label="⬇️ Download TXT", data=formatted,
@@ -426,6 +644,8 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
     with st.expander("📋 Preview Quiz", expanded=True):
         st.text(formatted)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Footer
+# ─────────────────────────────────────────────────────────────────────────────
 if HOSTED_MODE:
-    st.markdown("---")
-    st.caption("QuizCraft — Powered by [Ollama](https://ollama.com) · Built by Nima Shafie")
+    st.html('<div class="qc-footer">QuizCraft · Powered by <a href="https://ollama.com">Ollama</a> · Built by Nima Shafie</div>')

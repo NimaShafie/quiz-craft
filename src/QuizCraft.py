@@ -38,26 +38,18 @@ GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 # ─────────────────────────────────────────────────────────────────────────────
 # Styling
 # ─────────────────────────────────────────────────────────────────────────────
-if os.path.exists(LOGO_PATH):
-    import base64
-    with open(LOGO_PATH, "rb") as _f:
-        _logo_b64 = base64.b64encode(_f.read()).decode()
-    st.html(f"""<style>
-.stAlert {{ border-radius: 8px; }}
-#quizcraft-logo {{
-    position: fixed;
-    top: 12px;
-    left: 12px;
-    width: 160px;
-    z-index: 999999;
-    pointer-events: none;
-}}
+import base64 as _b64
+_logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "images", "logo", "quiz-craft-logo.png")
+if os.path.exists(_logo_path):
+    with open(_logo_path, "rb") as _f:
+        _logo_data = _b64.b64encode(_f.read()).decode()
+    st.html("""<style>
+.stAlert { border-radius: 8px; }
+#qc-logo { display: block; margin: -2rem auto -1rem auto; width: 150px; }
 </style>
-<img id="quizcraft-logo" src="data:image/png;base64,{_logo_b64}" />""")
+<div><img id="qc-logo" src="data:image/png;base64,""" + _logo_data + """" /></div>""")
 else:
     st.html("""<style>.stAlert { border-radius: 8px; }</style>""")
-
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Session state init

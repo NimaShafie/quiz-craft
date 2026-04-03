@@ -84,9 +84,13 @@ html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
 }
 
-/* ── Page background ── */
+/* ── Page background with subtle quiz pattern ── */
 .stApp {
-    background: linear-gradient(160deg, #0f1923 0%, #1a2535 60%, #0f1923 100%);
+    background-color: #0f1923;
+    background-image:
+        radial-gradient(ellipse at 20% 20%, rgba(201,79,53,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(100,140,180,0.05) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='15' y='45' font-size='28' fill='rgba(255,255,255,0.018)' font-family='Georgia'%3E%3F%3C/text%3E%3Ctext x='65' y='95' font-size='22' fill='rgba(255,255,255,0.015)' font-family='Georgia'%3EA%3C/text%3E%3Ctext x='5' y='110' font-size='18' fill='rgba(255,255,255,0.012)' font-family='Georgia'%3EQ%3C/text%3E%3Ctext x='80' y='30' font-size='20' fill='rgba(255,255,255,0.015)' font-family='Georgia'%3E%E2%9C%93%3C/text%3E%3C/svg%3E");
 }
 
 /* ── Hide Streamlit chrome ── */
@@ -102,7 +106,7 @@ html, body, [class*="css"] {
 /* ── Logo ── */
 #qc-logo {
     display: block;
-    margin: -2rem auto -1rem auto;
+    margin: 0.5rem auto -0.5rem auto;
     width: 150px;
     filter: drop-shadow(0 4px 24px rgba(220,80,80,0.25));
 }
@@ -110,15 +114,13 @@ html, body, [class*="css"] {
 /* ── Title ── */
 h1 {
     font-family: 'Playfair Display', serif !important;
-    font-size: 2.6rem !important;
+    font-size: 2.4rem !important;
     font-weight: 700 !important;
-    background: linear-gradient(135deg, #f5f0e8 30%, #e8927c 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #f0ece4 !important;
     letter-spacing: -0.5px;
     margin-bottom: 0 !important;
 }
+h1 span { color: #dc6e50; }
 
 /* ── Caption / subtitle ── */
 .stCaption p {
@@ -493,22 +495,22 @@ def generate_quiz_pdf(quiz_text: str) -> bytes:
     for line in quiz_text.split("\n"):
         safe_line = line.encode("latin-1", errors="replace").decode("latin-1")
         pdf.multi_cell(0, 8, safe_line)
-    return bytes(pdf.output())
+    return pdf.output(dest="S").encode("latin-1")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UI — Header
 # ─────────────────────────────────────────────────────────────────────────────
-st.title("QuizCraft 🧠📚❓")
+st.title("QuizCraft")
 
 if HOSTED_MODE:
     st.caption("AI-powered quiz generator — free to use, powered by Ollama")
     used, total = get_remaining_quota()
     remaining = total - used
     color = "#4caf82" if remaining >= 3 else ("#f0a050" if remaining >= 1 else "#e05050")
-    st.html(f'<div class="quota-badge" style="color:{color};">🎟️ {remaining}/{total} generations remaining this hour</div>')
+    st.html(f'<div class="quota-badge" style="color:{color};">{remaining}/{total} generations remaining this hour</div>')
 else:
     st.caption("AI-powered quiz generator — self-hosted with Ollama")
-    with st.expander("ℹ️ Setup — first time?", expanded=False):
+    with st.expander("Setup — first time?", expanded=False):
         st.markdown("""
 **Requirements:** [Ollama](https://ollama.com) must be running on your machine.
 
@@ -527,7 +529,7 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 with st.form(key="quiz_form"):
     uploaded_file = st.file_uploader(
-        "📎 Upload a TXT or PDF file",
+        "Upload a TXT or PDF file",
         type=["txt", "pdf"],
         help=f"Max ~{MAX_PROMPT_CHARS} characters will be used as context.",
     )
@@ -535,7 +537,7 @@ with st.form(key="quiz_form"):
     st.html('<div class="or-sep">— or —</div>')
 
     user_prompt = st.text_area(
-        "✍️ Enter a topic or paste text",
+        "Enter a topic or paste text",
         height=140,
         max_chars=MAX_PROMPT_CHARS,
         placeholder="e.g. 'World War II causes and effects' or paste any text...",
@@ -561,12 +563,12 @@ with st.form(key="quiz_form"):
     has_types = bool(question_types)
 
     if no_quota:
-        st.error("🚫 You've reached the hourly limit. Please come back later.")
+        st.error("You've reached the hourly limit. Please come back later.")
     if not has_types:
-        st.warning("⚠️ Please select at least one question type.")
+        st.warning("Please select at least one question type.")
 
     submit = st.form_submit_button(
-        "🚀 Generate Quiz",
+        "Generate Quiz",
         disabled=(no_quota or not has_types),
         use_container_width=True,
         type="primary",
@@ -582,7 +584,7 @@ if submit:
     if HOSTED_MODE:
         allowed, rate_msg = check_rate_limit()
         if not allowed:
-            st.error(f"🚫 {rate_msg}")
+            st.error(f"{rate_msg}")
             st.stop()
 
     raw_prompt = user_prompt.strip()
@@ -592,12 +594,12 @@ if submit:
 
     is_valid, safe_prompt, warn_msg = validate_input(raw_prompt)
     if not is_valid:
-        st.warning(f"⚠️ {warn_msg}")
+        st.warning(f"{warn_msg}")
         st.stop()
 
     with st.status("Generating quiz...", expanded=True) as status:
         st.write(f"🤖 Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
-        st.write("⏳ This takes 15-30 seconds on CPU — please wait...")
+        st.write("This takes 15-30 seconds on CPU — please wait...")
         st.progress(0.3, text="Sending request to Ollama...")
         quiz_data = run_generate_quiz(n_questions, difficulty, safe_prompt, question_types)
         if quiz_data:
@@ -605,13 +607,13 @@ if submit:
                 record_request()
             st.session_state.quiz_data = quiz_data
             st.session_state.quiz_generated = True
-            status.update(label="✅ Quiz ready!", state="complete", expanded=False)
-            st.toast("Quiz generated! 🎉", icon="🎉")
+            status.update(label="Quiz ready!", state="complete", expanded=False)
+            st.toast("Quiz ready!")
         else:
-            status.update(label="❌ Generation failed", state="error", expanded=False)
+            status.update(label="Generation failed", state="error", expanded=False)
 
 if st.session_state.last_error:
-    st.error(f"**Error:** {st.session_state.last_error}")
+    st.error(f"Error: {st.session_state.last_error}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Results
@@ -629,19 +631,19 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
     with col_pdf:
         if pdf_bytes:
             st.download_button(
-                label="⬇️ Download PDF", data=pdf_bytes,
+                label="Download PDF", data=pdf_bytes,
                 file_name="quiz.pdf", mime="application/pdf",
                 use_container_width=True,
             )
         else:
-            st.warning("⚠️ PDF export unavailable. Use TXT instead.")
+            st.warning("PDF export unavailable. Use TXT download instead.")
     with col_txt:
         st.download_button(
-            label="⬇️ Download TXT", data=formatted,
+            label="Download TXT", data=formatted,
             file_name="quiz.txt", mime="text/plain",
             use_container_width=True,
         )
-    with st.expander("📋 Preview Quiz", expanded=True):
+    with st.expander("Preview Quiz", expanded=True):
         st.text(formatted)
 
 # ─────────────────────────────────────────────────────────────────────────────

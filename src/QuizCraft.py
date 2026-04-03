@@ -4,7 +4,10 @@ QuizCraft.py — AI-powered quiz generator using a local Ollama model.
 Author: Nima Shafie
 
 Usage:
+    # Self-hosted (no restrictions):
     streamlit run src/QuizCraft.py
+
+    # Hosted mode (rate limiting + abuse protection):
     HOSTED_MODE=true streamlit run src/QuizCraft.py
 """
 
@@ -22,21 +25,19 @@ from fpdf import FPDF
 from dataclasses import dataclass, field
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Mode + Config
+# Mode detection
 # ─────────────────────────────────────────────────────────────────────────────
 HOSTED_MODE = os.environ.get("HOSTED_MODE", "").lower() in ("true", "1", "yes")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Config
+# ─────────────────────────────────────────────────────────────────────────────
 MAX_QUESTIONS    = 20   if HOSTED_MODE else 40
 MAX_PROMPT_CHARS = 2000 if HOSTED_MODE else 3500
+
 RATE_LIMIT_REQUESTS   = 5
 RATE_LIMIT_WINDOW_SEC = 3600
 COOLDOWN_SEC          = 15
-
-TOPIC_SUGGESTIONS = [
-    "World War II", "Human anatomy", "Python programming",
-    "The French Revolution", "Climate change", "Solar system",
-    "Ancient Rome", "Machine learning basics",
-]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page config
@@ -59,7 +60,7 @@ GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging
 # ─────────────────────────────────────────────────────────────────────────────
-_LOG_DIR = os.path.join(SCRIPT_DIR, "..", "logs")
+_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
 os.makedirs(_LOG_DIR, exist_ok=True)
 logging.basicConfig(
     filename=os.path.join(_LOG_DIR, "quizcraft.log"),
@@ -70,13 +71,20 @@ logging.basicConfig(
 _logger = logging.getLogger("quizcraft")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Theme CSS
+# Styling + Logo + Theme
 # ─────────────────────────────────────────────────────────────────────────────
+import base64 as _b64
+_logo_path = os.path.join(SCRIPT_DIR, "..", "images", "logo", "quiz-craft-logo.png")
+
 _THEME_CSS = """
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
+/* ── Base ── */
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+}
 
+/* ── Page background with subtle quiz pattern ── */
 .stApp {
     background-color: #0f1923;
     background-image:
@@ -85,54 +93,78 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='15' y='45' font-size='28' fill='rgba(255,255,255,0.018)' font-family='Georgia'%3E%3F%3C/text%3E%3Ctext x='65' y='95' font-size='22' fill='rgba(255,255,255,0.015)' font-family='Georgia'%3EA%3C/text%3E%3Ctext x='5' y='110' font-size='18' fill='rgba(255,255,255,0.012)' font-family='Georgia'%3EQ%3C/text%3E%3Ctext x='80' y='30' font-size='20' fill='rgba(255,255,255,0.015)' font-family='Georgia'%3E%E2%9C%93%3C/text%3E%3C/svg%3E");
 }
 
+/* ── Hide Streamlit chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
 .stDeployButton { display: none; }
 
-.block-container { padding-top: 1rem !important; max-width: 780px !important; }
-
-/* Logo */
-#qc-logo-wrap {
-    display: flex; justify-content: center;
-    margin: 0.5rem auto -0.5rem auto; width: 190px;
-    background: radial-gradient(ellipse at center, rgba(0,0,0,0.55) 30%, transparent 75%);
-    border-radius: 50%; padding: 0.8rem;
+/* ── Main content area ── */
+.block-container {
+    padding-top: 1rem !important;
+    max-width: 780px !important;
 }
-#qc-logo { display: block; width: 150px; filter: drop-shadow(0 4px 20px rgba(220,80,80,0.3)); }
 
-/* Title */
+/* ── Logo ── */
+#qc-logo {
+    display: block;
+    margin: 0.5rem auto -0.5rem auto;
+    width: 150px;
+    filter: drop-shadow(0 4px 24px rgba(220,80,80,0.25));
+}
+
+/* ── Title ── */
 h1 {
     font-family: 'Playfair Display', serif !important;
-    font-size: 2.4rem !important; font-weight: 700 !important;
-    color: #f0ece4 !important; letter-spacing: -0.5px; margin-bottom: 0 !important;
+    font-size: 2.4rem !important;
+    font-weight: 700 !important;
+    color: #f0ece4 !important;
+    letter-spacing: -0.5px;
+    margin-bottom: 0 !important;
+}
+h1 span { color: #dc6e50; }
+
+/* ── Caption / subtitle ── */
+.stCaption p {
+    color: #8fa3b8 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.3px;
 }
 
-.stCaption p { color: #8fa3b8 !important; font-size: 0.9rem !important; }
+/* ── Divider ── */
+hr {
+    border-color: rgba(255,255,255,0.07) !important;
+    margin: 0.8rem 0 1.2rem 0 !important;
+}
 
-hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 !important; }
-
-/* Form card */
+/* ── Form card ── */
 [data-testid="stForm"] {
     background: rgba(255,255,255,0.04) !important;
     border: 1px solid rgba(255,255,255,0.09) !important;
-    border-radius: 16px !important; padding: 1.6rem 1.8rem !important;
-    backdrop-filter: blur(8px); box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    border-radius: 16px !important;
+    padding: 1.6rem 1.8rem !important;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
 }
 
-/* File uploader */
+/* ── File uploader ── */
 [data-testid="stFileUploader"] {
     background: rgba(255,255,255,0.03) !important;
     border: 1.5px dashed rgba(255,255,255,0.15) !important;
-    border-radius: 10px !important; padding: 0.4rem 0.8rem !important;
+    border-radius: 10px !important;
+    padding: 0.4rem 0.8rem !important;
     transition: border-color 0.2s;
 }
-[data-testid="stFileUploader"]:hover { border-color: rgba(220,130,100,0.5) !important; }
+[data-testid="stFileUploader"]:hover {
+    border-color: rgba(220,130,100,0.5) !important;
+}
 
-/* Text area */
+/* ── Text area ── */
 [data-testid="stTextArea"] textarea {
     background: rgba(255,255,255,0.04) !important;
     border: 1.5px solid rgba(255,255,255,0.1) !important;
-    border-radius: 10px !important; color: #e8e4dc !important;
-    font-family: 'DM Sans', sans-serif !important; font-size: 0.95rem !important;
+    border-radius: 10px !important;
+    color: #e8e4dc !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.95rem !important;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 [data-testid="stTextArea"] textarea:focus {
@@ -140,25 +172,41 @@ hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 
     box-shadow: 0 0 0 3px rgba(220,130,100,0.1) !important;
 }
 
-/* OR separator */
+/* ── OR separator ── */
 .or-sep {
-    text-align: center; color: #4a6070; font-size: 0.78rem;
-    letter-spacing: 2px; text-transform: uppercase; margin: 0.6rem 0;
+    text-align: center;
+    color: #4a6070;
+    font-size: 0.78rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 0.6rem 0;
+    position: relative;
 }
 
-/* Segmented control */
+/* ── Segmented control (difficulty) ── */
 [data-testid="stSegmentedControl"] {
     background: rgba(255,255,255,0.05) !important;
-    border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* Generate button */
+/* ── Slider ── */
+[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+    background: #dc6e50 !important;
+    border-color: #dc6e50 !important;
+}
+
+/* ── Generate button ── */
 [data-testid="stFormSubmitButton"] button {
     background: linear-gradient(135deg, #c94f35 0%, #e0714f 100%) !important;
-    border: none !important; border-radius: 10px !important;
-    color: white !important; font-family: 'DM Sans', sans-serif !important;
-    font-weight: 500 !important; font-size: 1rem !important;
-    letter-spacing: 0.3px !important; padding: 0.65rem 1.5rem !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: white !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.3px !important;
+    padding: 0.65rem 1.5rem !important;
     transition: transform 0.15s, box-shadow 0.15s !important;
     box-shadow: 0 4px 20px rgba(201,79,53,0.35) !important;
 }
@@ -167,15 +215,18 @@ hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 
     box-shadow: 0 6px 28px rgba(201,79,53,0.5) !important;
 }
 [data-testid="stFormSubmitButton"] button:disabled {
-    background: rgba(255,255,255,0.08) !important; box-shadow: none !important;
-    transform: none !important; color: rgba(255,255,255,0.3) !important;
+    background: rgba(255,255,255,0.08) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    color: rgba(255,255,255,0.3) !important;
 }
 
-/* Download buttons */
+/* ── Download buttons ── */
 [data-testid="stDownloadButton"] button {
     background: rgba(255,255,255,0.06) !important;
     border: 1px solid rgba(255,255,255,0.12) !important;
-    border-radius: 8px !important; color: #c8d8e8 !important;
+    border-radius: 8px !important;
+    color: #c8d8e8 !important;
     font-family: 'DM Sans', sans-serif !important;
     transition: background 0.15s, border-color 0.15s !important;
 }
@@ -184,108 +235,85 @@ hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 
     border-color: rgba(255,255,255,0.25) !important;
 }
 
-/* Regular buttons (topic pills, quiz mode) */
-[data-testid="stButton"] button {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 20px !important; color: #a0b8cc !important;
-    font-size: 0.82rem !important; padding: 0.25rem 0.85rem !important;
-    transition: all 0.15s !important;
-}
-[data-testid="stButton"] button:hover {
-    background: rgba(201,79,53,0.15) !important;
-    border-color: rgba(201,79,53,0.4) !important;
-    color: #e8c4b8 !important;
-}
-
-/* Quiz mode answer buttons */
-.quiz-btn-correct button {
-    background: rgba(76,175,130,0.2) !important;
-    border-color: rgba(76,175,130,0.5) !important;
-    color: #7dd4aa !important;
-}
-.quiz-btn-wrong button {
-    background: rgba(220,80,80,0.2) !important;
-    border-color: rgba(220,80,80,0.5) !important;
-    color: #e08888 !important;
-}
-
-/* Expander */
+/* ── Expander (setup + preview) ── */
 [data-testid="stExpander"] {
     background: rgba(255,255,255,0.03) !important;
-    border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 10px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
 }
-[data-testid="stExpander"] summary { color: #8fa3b8 !important; font-size: 0.9rem !important; }
+[data-testid="stExpander"] summary {
+    color: #8fa3b8 !important;
+    font-size: 0.9rem !important;
+}
 
-/* Alerts */
-.stAlert { border-radius: 10px !important; border-left-width: 3px !important; font-size: 0.9rem !important; }
+/* ── Alerts ── */
+.stAlert {
+    border-radius: 10px !important;
+    border-left-width: 3px !important;
+    font-size: 0.9rem !important;
+}
 
-/* Status box */
+/* ── Status box ── */
 [data-testid="stStatus"] {
-    border-radius: 10px !important; background: rgba(255,255,255,0.03) !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,0.03) !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* Multiselect tags */
+/* ── Multiselect tags ── */
 [data-baseweb="tag"] {
     background: rgba(201,79,53,0.25) !important;
-    border-color: rgba(201,79,53,0.4) !important; border-radius: 6px !important;
+    border-color: rgba(201,79,53,0.4) !important;
+    border-radius: 6px !important;
 }
 
-/* Labels */
-label, [data-testid="stWidgetLabel"] p {
-    color: #a0b4c4 !important; font-size: 0.85rem !important;
-    font-weight: 500 !important; letter-spacing: 0.3px !important;
+/* ── Labels ── */
+label, .stSelectbox label, [data-testid="stWidgetLabel"] p {
+    color: #a0b4c4 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.3px !important;
     text-transform: uppercase !important;
 }
 
-/* Quiz preview text */
+/* ── Quiz preview text ── */
 [data-testid="stText"] {
     font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.92rem !important; line-height: 1.7 !important; color: #c8d8e0 !important;
+    font-size: 0.92rem !important;
+    line-height: 1.7 !important;
+    color: #c8d8e0 !important;
 }
 
-/* Score display */
-.score-display {
-    text-align: center; padding: 1.5rem;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; margin: 1rem 0;
+/* ── Quota badge ── */
+.quota-badge {
+    text-align: right;
+    font-size: 0.78rem;
+    margin-top: -10px;
+    margin-bottom: 8px;
+    opacity: 0.85;
 }
-.score-number {
-    font-family: 'Playfair Display', serif;
-    font-size: 3rem; color: #e0714f; font-weight: 700;
-}
-.score-label { color: #8fa3b8; font-size: 0.9rem; margin-top: 0.3rem; }
 
-/* Quota badge */
-.quota-badge { text-align: right; font-size: 0.78rem; margin-top: -10px; margin-bottom: 8px; opacity: 0.85; }
-
-/* Footer */
+/* ── Footer ── */
 .qc-footer {
-    text-align: center; color: #2a4050; font-size: 0.75rem;
-    margin-top: 2.5rem; padding: 1.5rem 0 1rem 0;
-    border-top: 1px solid rgba(255,255,255,0.05);
-    letter-spacing: 0.3px; line-height: 1.8;
+    text-align: center;
+    color: #3a5060;
+    font-size: 0.75rem;
+    margin-top: 2rem;
+    letter-spacing: 0.3px;
 }
-.qc-footer a { color: #4a7080; text-decoration: none; }
-.qc-footer a:hover { color: #dc6e50; }
+.qc-footer a { color: #5a8090; text-decoration: none; }
 </style>
 """
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Inject theme + logo
-# ─────────────────────────────────────────────────────────────────────────────
-import base64 as _b64
-if os.path.exists(LOGO_PATH):
-    with open(LOGO_PATH, "rb") as _f:
+if os.path.exists(_logo_path):
+    with open(_logo_path, "rb") as _f:
         _logo_data = _b64.b64encode(_f.read()).decode()
-    st.html(_THEME_CSS + '<div id="qc-logo-wrap"><img id="qc-logo" src="data:image/png;base64,' + _logo_data + '" /></div>')
+    st.html(_THEME_CSS + '<div><img id="qc-logo" src="data:image/png;base64,' + _logo_data + '" /></div>')
 else:
     st.html(_THEME_CSS)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Rate limiting
+# Rate limiting (hosted mode only)
 # ─────────────────────────────────────────────────────────────────────────────
 @dataclass
 class _IPRecord:
@@ -295,9 +323,12 @@ class _IPRecord:
 _ip_store: dict = {}
 
 _ABUSE_PATTERNS = re.compile(
-    r"(ignore (previous|above|all) instructions?|disregard|forget (everything|all)|"
-    r"you are now|act as|pretend (you are|to be)|system prompt|override|jailbreak|"
-    r"repeat after me|say exactly)", re.IGNORECASE,
+    r"(ignore (previous|above|all) instructions?|"
+    r"disregard|forget (everything|all)|"
+    r"you are now|act as|pretend (you are|to be)|"
+    r"system prompt|override|jailbreak|"
+    r"repeat after me|say exactly)",
+    re.IGNORECASE,
 )
 
 def _get_client_ip() -> str:
@@ -316,9 +347,12 @@ def _get_client_ip() -> str:
         return "unknown"
 
 def check_rate_limit() -> tuple:
-    if not HOSTED_MODE: return True, ""
-    ip = _get_client_ip(); now = time.time()
-    if ip not in _ip_store: _ip_store[ip] = _IPRecord()
+    if not HOSTED_MODE:
+        return True, ""
+    ip = _get_client_ip()
+    now = time.time()
+    if ip not in _ip_store:
+        _ip_store[ip] = _IPRecord()
     record = _ip_store[ip]
     elapsed = now - record.last_request
     if record.last_request > 0 and elapsed < COOLDOWN_SEC:
@@ -327,26 +361,34 @@ def check_rate_limit() -> tuple:
     if len(record.timestamps) >= RATE_LIMIT_REQUESTS:
         oldest = record.timestamps[0]
         reset_in = int(RATE_LIMIT_WINDOW_SEC - (now - oldest))
-        return False, f"Rate limit reached ({RATE_LIMIT_REQUESTS} quizzes/hour). Resets in {reset_in // 60}m {reset_in % 60}s."
+        return False, (f"Rate limit reached ({RATE_LIMIT_REQUESTS} quizzes/hour). "
+                       f"Resets in {reset_in // 60}m {reset_in % 60}s.")
     return True, ""
 
 def record_request():
-    if not HOSTED_MODE: return
-    ip = _get_client_ip(); now = time.time()
-    if ip not in _ip_store: _ip_store[ip] = _IPRecord()
+    if not HOSTED_MODE:
+        return
+    ip = _get_client_ip()
+    now = time.time()
+    if ip not in _ip_store:
+        _ip_store[ip] = _IPRecord()
     _ip_store[ip].timestamps.append(now)
     _ip_store[ip].last_request = now
 
 def get_remaining_quota() -> tuple:
-    if not HOSTED_MODE: return 0, 0
-    ip = _get_client_ip(); now = time.time()
-    if ip not in _ip_store: return 0, RATE_LIMIT_REQUESTS
+    if not HOSTED_MODE:
+        return 0, 0
+    ip = _get_client_ip()
+    now = time.time()
+    if ip not in _ip_store:
+        return 0, RATE_LIMIT_REQUESTS
     used = len([t for t in _ip_store[ip].timestamps if now - t < RATE_LIMIT_WINDOW_SEC])
     return used, RATE_LIMIT_REQUESTS
 
 def validate_input(text: str) -> tuple:
     text = text.strip()
-    if not text: return False, "", "Please enter a topic or paste some text."
+    if not text:
+        return False, "", "Please enter a topic or paste some text."
     if HOSTED_MODE:
         text = text[:MAX_PROMPT_CHARS]
         if _ABUSE_PATTERNS.search(text):
@@ -358,12 +400,7 @@ def validate_input(text: str) -> tuple:
 # ─────────────────────────────────────────────────────────────────────────────
 # Session state
 # ─────────────────────────────────────────────────────────────────────────────
-defaults = {
-    "quiz_generated": False, "quiz_data": None, "last_error": None,
-    "quiz_mode": False, "current_q": 0, "answers": {}, "show_results": False,
-    "topic_suggestion": "",
-}
-for key, default in defaults.items():
+for key, default in [("quiz_generated", False), ("quiz_data", None), ("last_error", None)]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -378,7 +415,8 @@ def extract_text_from_file(uploaded_file) -> str:
             from pypdf import PdfReader
             import io
             reader = PdfReader(io.BytesIO(uploaded_file.read()))
-            return " ".join(page.extract_text() or "" for page in reader.pages)[:MAX_PROMPT_CHARS]
+            text = " ".join(page.extract_text() or "" for page in reader.pages)
+            return text[:MAX_PROMPT_CHARS]
         except Exception as e:
             st.error(f"Could not read PDF: {e}")
             return ""
@@ -392,7 +430,7 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
             capture_output=True, text=True, timeout=180,
         )
     except subprocess.TimeoutExpired:
-        _logger.warning("Timeout n=%s difficulty=%s", n_questions, difficulty)
+        _logger.warning("Quiz generation timed out (n=%s, difficulty=%s)", n_questions, difficulty)
         st.session_state.last_error = "Quiz generation timed out. Try fewer questions or a smaller model."
         return None
     except Exception as e:
@@ -443,7 +481,8 @@ def format_quiz_as_text(quiz_data: dict) -> str:
             except ValueError:
                 out += f"{i}. {answer}\n"
         elif qtype == "true/false":
-            out += f"{i}. ({'a' if str(answer).lower() == 'true' else 'b'}) {answer}\n"
+            letter = "a" if str(answer).lower() == "true" else "b"
+            out += f"{i}. ({letter}) {answer}\n"
         else:
             out += f"{i}. {answer}\n"
     return out
@@ -474,6 +513,7 @@ else:
     with st.expander("Setup — first time?", expanded=False):
         st.markdown("""
 **Requirements:** [Ollama](https://ollama.com) must be running on your machine.
+
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull gemma3:4b
@@ -485,31 +525,24 @@ Edit `config.ini` to change the model.
 st.markdown("---")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UI — Topic suggestions
-# ─────────────────────────────────────────────────────────────────────────────
-st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.4rem;">Quick topics</p>')
-cols = st.columns(len(TOPIC_SUGGESTIONS))
-for i, topic in enumerate(TOPIC_SUGGESTIONS):
-    with cols[i]:
-        if st.button(topic, key=f"topic_{i}"):
-            st.session_state.topic_suggestion = topic
-            st.rerun()
-
-# ─────────────────────────────────────────────────────────────────────────────
 # UI — Form
 # ─────────────────────────────────────────────────────────────────────────────
 with st.form(key="quiz_form"):
     uploaded_file = st.file_uploader(
-        "Upload a TXT or PDF file", type=["txt", "pdf"],
+        "Upload a TXT or PDF file",
+        type=["txt", "pdf"],
         help=f"Max ~{MAX_PROMPT_CHARS} characters will be used as context.",
     )
+
     st.html('<div class="or-sep">— or —</div>')
+
     user_prompt = st.text_area(
-        "Enter a topic or paste text", height=120,
+        "Enter a topic or paste text",
+        height=140,
         max_chars=MAX_PROMPT_CHARS,
-        value=st.session_state.topic_suggestion,
         placeholder="e.g. 'World War II causes and effects' or paste any text...",
     )
+
     col1, col2 = st.columns(2, gap="large")
     with col1:
         question_types = st.multiselect(
@@ -518,9 +551,13 @@ with st.form(key="quiz_form"):
             default=["Multiple Choice"],
         )
     with col2:
-        difficulty = st.segmented_control("Difficulty", ["Easy", "Medium", "Hard"], default="Medium")
+        difficulty = st.segmented_control(
+            "Difficulty", ["Easy", "Medium", "Hard"], default="Medium",
+        )
 
-    n_questions = st.slider("Number of Questions", min_value=3, max_value=MAX_QUESTIONS, value=10)
+    n_questions = st.slider(
+        "Number of Questions", min_value=3, max_value=MAX_QUESTIONS, value=10,
+    )
 
     no_quota  = HOSTED_MODE and get_remaining_quota()[0] >= RATE_LIMIT_REQUESTS
     has_types = bool(question_types)
@@ -531,8 +568,10 @@ with st.form(key="quiz_form"):
         st.warning("Please select at least one question type.")
 
     submit = st.form_submit_button(
-        "Generate Quiz", disabled=(no_quota or not has_types),
-        use_container_width=True, type="primary",
+        "Generate Quiz",
+        disabled=(no_quota or not has_types),
+        use_container_width=True,
+        type="primary",
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -541,16 +580,11 @@ with st.form(key="quiz_form"):
 if submit:
     st.session_state.quiz_generated = False
     st.session_state.last_error = None
-    st.session_state.quiz_mode = False
-    st.session_state.current_q = 0
-    st.session_state.answers = {}
-    st.session_state.show_results = False
-    st.session_state.topic_suggestion = ""
 
     if HOSTED_MODE:
         allowed, rate_msg = check_rate_limit()
         if not allowed:
-            st.error(rate_msg)
+            st.error(f"{rate_msg}")
             st.stop()
 
     raw_prompt = user_prompt.strip()
@@ -560,11 +594,11 @@ if submit:
 
     is_valid, safe_prompt, warn_msg = validate_input(raw_prompt)
     if not is_valid:
-        st.warning(warn_msg)
+        st.warning(f"{warn_msg}")
         st.stop()
 
     with st.status("Generating quiz...", expanded=True) as status:
-        st.write(f"Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
+        st.write(f"🤖 Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
         st.write("This takes 15-30 seconds on CPU — please wait...")
         st.progress(0.3, text="Sending request to Ollama...")
         quiz_data = run_generate_quiz(n_questions, difficulty, safe_prompt, question_types)
@@ -586,124 +620,34 @@ if st.session_state.last_error:
 # ─────────────────────────────────────────────────────────────────────────────
 if st.session_state.quiz_generated and st.session_state.quiz_data:
     st.markdown("---")
-    quiz_data = st.session_state.quiz_data
-    questions = quiz_data.get("quiz", [])
-    formatted = format_quiz_as_text(quiz_data)
-
+    formatted = format_quiz_as_text(st.session_state.quiz_data)
     try:
         pdf_bytes = generate_quiz_pdf(formatted)
     except Exception as e:
-        _logger.error("PDF error: %s\n%s", e, traceback.format_exc())
+        _logger.error("PDF generation error: %s\n%s", e, traceback.format_exc())
         pdf_bytes = None
 
-    # Action row — download + take quiz toggle
-    col_pdf, col_txt, col_mode = st.columns([1, 1, 1])
+    col_pdf, col_txt = st.columns(2)
     with col_pdf:
         if pdf_bytes:
-            st.download_button("Download PDF", data=pdf_bytes, file_name="quiz.pdf",
-                               mime="application/pdf", use_container_width=True)
+            st.download_button(
+                label="Download PDF", data=pdf_bytes,
+                file_name="quiz.pdf", mime="application/pdf",
+                use_container_width=True,
+            )
         else:
-            st.warning("PDF unavailable. Use TXT.")
+            st.warning("PDF export unavailable. Use TXT download instead.")
     with col_txt:
-        st.download_button("Download TXT", data=formatted, file_name="quiz.txt",
-                           mime="text/plain", use_container_width=True)
-    with col_mode:
-        label = "View Download" if st.session_state.quiz_mode else "Take Quiz"
-        if st.button(label, use_container_width=True):
-            st.session_state.quiz_mode = not st.session_state.quiz_mode
-            st.session_state.current_q = 0
-            st.session_state.answers = {}
-            st.session_state.show_results = False
-            st.rerun()
-
-    # ── Interactive quiz mode ──────────────────────────────────────────────
-    if st.session_state.quiz_mode and not st.session_state.show_results:
-        mc_questions = [q for q in questions if q.get("type", "").lower() == "multiple choice"]
-        tf_questions = [q for q in questions if q.get("type", "").lower() == "true/false"]
-        takeable = mc_questions + tf_questions
-
-        if not takeable:
-            st.info("Interactive mode requires Multiple Choice or True/False questions.")
-        else:
-            idx = st.session_state.current_q
-            if idx < len(takeable):
-                q = takeable[idx]
-                progress_val = idx / len(takeable)
-                st.progress(progress_val, text=f"Question {idx + 1} of {len(takeable)}")
-                st.markdown(f"**{idx + 1}. {q['question']}**")
-
-                opts = q.get("options", ["True", "False"])
-                for opt in opts:
-                    already_answered = idx in st.session_state.answers
-                    if already_answered:
-                        correct_answer = q.get("answer", "")
-                        answer_clean = correct_answer.split(". ", 1)[-1] if ". " in correct_answer else correct_answer
-                        is_correct_opt = opt == answer_clean or opt == correct_answer
-                        is_chosen = st.session_state.answers[idx] == opt
-                        if is_correct_opt:
-                            st.success(f"✓  {opt}")
-                        elif is_chosen:
-                            st.error(f"✗  {opt}")
-                        else:
-                            st.write(f"   {opt}")
-                    else:
-                        if st.button(opt, key=f"opt_{idx}_{opt}"):
-                            st.session_state.answers[idx] = opt
-                            st.rerun()
-
-                if idx in st.session_state.answers:
-                    col_next, _ = st.columns([1, 3])
-                    with col_next:
-                        next_label = "Finish" if idx + 1 >= len(takeable) else "Next"
-                        if st.button(next_label, key="next_q"):
-                            if idx + 1 >= len(takeable):
-                                st.session_state.show_results = True
-                            else:
-                                st.session_state.current_q += 1
-                            st.rerun()
-
-    # ── Score results ──────────────────────────────────────────────────────
-    elif st.session_state.quiz_mode and st.session_state.show_results:
-        mc_questions = [q for q in questions if q.get("type", "").lower() == "multiple choice"]
-        tf_questions = [q for q in questions if q.get("type", "").lower() == "true/false"]
-        takeable = mc_questions + tf_questions
-
-        correct = 0
-        for i, q in enumerate(takeable):
-            chosen = st.session_state.answers.get(i, "")
-            correct_answer = q.get("answer", "")
-            answer_clean = correct_answer.split(". ", 1)[-1] if ". " in correct_answer else correct_answer
-            if chosen == answer_clean or chosen == correct_answer:
-                correct += 1
-
-        total_q = len(takeable)
-        pct = int((correct / total_q) * 100) if total_q > 0 else 0
-        grade = "Excellent!" if pct >= 90 else "Good work!" if pct >= 70 else "Keep practicing!"
-
-        st.html(f'''<div class="score-display">
-            <div class="score-number">{correct}/{total_q}</div>
-            <div class="score-label">{pct}% — {grade}</div>
-        </div>''')
-
-        if st.button("Retake Quiz", use_container_width=False):
-            st.session_state.current_q = 0
-            st.session_state.answers = {}
-            st.session_state.show_results = False
-            st.rerun()
-
-    # ── Preview (non-quiz mode) ────────────────────────────────────────────
-    else:
-        with st.expander("Preview Quiz", expanded=True):
-            st.text(formatted)
+        st.download_button(
+            label="Download TXT", data=formatted,
+            file_name="quiz.txt", mime="text/plain",
+            use_container_width=True,
+        )
+    with st.expander("Preview Quiz", expanded=True):
+        st.text(formatted)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Footer
 # ─────────────────────────────────────────────────────────────────────────────
-st.html('''<div class="qc-footer">
-    <strong style="color:#4a7080;letter-spacing:1px;">QUIZCRAFT</strong><br>
-    Built by <a href="https://github.com/NimaShafie">Nima Shafie</a>
-    &nbsp;·&nbsp; Powered by <a href="https://ollama.com">Ollama</a>
-    &nbsp;·&nbsp; Built with <a href="https://streamlit.io">Streamlit</a>
-    &nbsp;·&nbsp; Model: <a href="https://ollama.com/library/gemma3">gemma3:4b</a><br>
-    <span style="color:#1e3040;">Licensed under CC BY-NC-ND 4.0 &nbsp;·&nbsp; Not for commercial use</span>
-</div>''')
+if HOSTED_MODE:
+    st.html('<div class="qc-footer">QuizCraft · Powered by <a href="https://ollama.com">Ollama</a> · Built by Nima Shafie</div>')

@@ -1,26 +1,25 @@
-# Use an official Python runtime as a parent image
+# QuizCraft Dockerfile
+# Author: Nima Shafie
+
 FROM python:3.12-slim
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy all necessary files and folders into the container
-COPY . /app
-
-# Install dependencies for downloading and installing Ollama CLI
+# System deps
 RUN apt-get update && apt-get install -y \
     curl \
-    tar \
-    libstdc++6 \
-    procps \
-    bash && apt-get clean
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python deps first (layer caching)
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the Streamlit and Ollama default ports
-EXPOSE 8501
-EXPOSE 11434
+# Copy application
+COPY . /app
 
-# Start Streamlit after Ollama is ready
+# Streamlit default port
+EXPOSE 8501
+EXPOSE 8502
+
+# Default: Version 1 (override with docker compose command)
 CMD ["streamlit", "run", "src/QuizCraft.py", "--server.port=8501", "--server.address=0.0.0.0"]

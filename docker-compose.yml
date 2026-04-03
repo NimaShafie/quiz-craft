@@ -1,32 +1,88 @@
+# QuizCraft — Docker Compose
+# Version 1 (self-hosted): docker compose up
+# Version 2 (hosted):      docker compose --profile hosted up
+
 services:
-  streamlit:
-    build: .  # Build from the local Dockerfile
-    container_name: quiz_craft_app_streamlit  # Name the container for easier referencing
+
+  # ── Ollama LLM backend ────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: quizcraft_ollama
     ports:
-      - "8501:8501"  # Expose Streamlit port
-    environment:
-      - OLLAMA_HOST=http://ollama:11434  # Point Streamlit to the Ollama host
-    depends_on:
-      - ollama  # Ensure Ollama starts first
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
     restart: unless-stopped
     networks:
-      - app_network
+      - quizcraft_net
+    # GPU support — uncomment if you have NVIDIA GPU + nvidia-container-toolkit
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
-  ollama:
-    image: ollama/ollama  # Use the official Ollama image
-    container_name: quiz_craft_llm_ollama  # Name the container for easier referencing
-    command: ["serve"]  # start with serve (only accepts this command)
-    ports:
-      - "11434:11434"  # Expose Ollama's API port
-    volumes:
-      - ollama_models:/root/.ollama/models  # Persist Ollama's models
-    restart: no
+  # ── Pull the model on first start ─────────────────────────────────────────
+  ollama_pull:
+    image: curlimages/curl:latest
+    container_name: quizcraft_model_pull
+    depends_on:
+      - ollama
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama...';
+        until curl -sf http://ollama:11434/api/tags > /dev/null; do sleep 2; done;
+        echo 'Pulling gemma3:4b ...';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"gemma3:4b\"}';
+        echo 'Model ready.'
+      "
     networks:
-      - app_network
+      - quizcraft_net
+    restart: "no"
+
+  # ── Version 1: Self-hosted (personal use) ─────────────────────────────────
+  quizcraft_v1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quizcraft_v1
+    ports:
+      - "8501:8501"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=gemma3:4b
+    depends_on:
+      - ollama
+    command: streamlit run src/QuizCraft.py --server.port=8501 --server.address=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - quizcraft_net
+
+  # ── Version 2: Hosted (public, with rate limiting) ────────────────────────
+  quizcraft_v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quizcraft_v2
+    profiles:
+      - hosted
+    ports:
+      - "8502:8502"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=gemma3:4b
+    depends_on:
+      - ollama
+    command: streamlit run src/QuizCraft_hosted.py --server.port=8502 --server.address=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - quizcraft_net
 
 volumes:
-  ollama_models:  # Named volume to store Ollama's models
+  ollama_models:
 
 networks:
-  app_network:
+  quizcraft_net:
     driver: bridge

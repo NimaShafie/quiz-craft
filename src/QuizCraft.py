@@ -342,22 +342,14 @@ with st.form(key="quiz_form"):
         help=f"Maximum {MAX_QUESTIONS} questions." if HOSTED_MODE else None,
     )
 
-    has_input = bool(user_prompt.strip() or uploaded_file)
-    has_both  = bool(user_prompt.strip() and uploaded_file)
+
+    no_quota = HOSTED_MODE and get_remaining_quota()[0] >= RATE_LIMIT_REQUESTS
     has_types = bool(question_types)
-    no_quota  = HOSTED_MODE and get_remaining_quota()[0] >= RATE_LIMIT_REQUESTS
-
-    if has_both:
-        st.warning("⚠️ Please use only one input method — text OR file, not both.")
-    elif not has_input:
-        st.info("Enter a topic above or upload a file to get started.")
-    elif not has_types:
-        st.warning("⚠️ Please select at least one question type.")
-    elif no_quota:
+    if no_quota:
         st.error("🚫 You've reached the hourly limit. Please come back later.")
-
-    disable = not has_input or has_both or not has_types or no_quota
-    submit = st.form_submit_button("🚀 Generate Quiz", disabled=disable, use_container_width=True, type="primary")
+    if not has_types:
+        st.warning("⚠️ Please select at least one question type.")
+    submit = st.form_submit_button("🚀 Generate Quiz", disabled=(no_quota or not has_types), use_container_width=True, type="primary")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Generation

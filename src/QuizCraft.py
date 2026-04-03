@@ -33,8 +33,9 @@ RATE_LIMIT_WINDOW_SEC = 3600
 COOLDOWN_SEC          = 15
 
 TOPIC_SUGGESTIONS = [
-    "World War II", "Human anatomy", "Python basics", "Climate change",
-    "Ancient Rome", "Solar system", "Cell biology", "World geography",
+    "World War II", "Human anatomy", "Python programming",
+    "The French Revolution", "Climate change", "Solar system",
+    "Ancient Rome", "Machine learning basics",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -209,6 +210,41 @@ hr { border-color: rgba(255,255,255,0.07) !important; margin: 0.8rem 0 1.2rem 0 
     color: #e08888 !important;
 }
 
+/* Quiz mode question card */
+.quiz-question-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 1.4rem 1.6rem;
+    margin: 0.8rem 0;
+}
+.quiz-q-number {
+    font-size: 0.78rem; color: #dc6e50;
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 0.4rem; font-weight: 600;
+}
+.quiz-q-text {
+    font-size: 1.05rem; color: #e8e4dc;
+    font-weight: 600; line-height: 1.5;
+    margin-bottom: 1rem;
+}
+.quiz-opt-btn button {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+    color: #c0d0dc !important;
+    font-size: 0.92rem !important;
+    padding: 0.5rem 1rem !important;
+    text-align: left !important;
+    transition: all 0.15s !important;
+    margin-bottom: 0.3rem !important;
+}
+.quiz-opt-btn button:hover {
+    background: rgba(201,79,53,0.12) !important;
+    border-color: rgba(201,79,53,0.4) !important;
+    color: #e8c4b0 !important;
+}
+
 /* Expander */
 [data-testid="stExpander"] {
     background: rgba(255,255,255,0.03) !important;
@@ -359,7 +395,7 @@ def validate_input(text: str) -> tuple:
 # ─────────────────────────────────────────────────────────────────────────────
 defaults = {
     "quiz_generated": False, "quiz_data": None, "last_error": None,
-    "quiz_mode": False, "current_q": 0, "answers": {}, "show_results": False,
+    "quiz_mode": False, "current_q": 0, "answers": {}, "show_results": False, "quiz_topic": "",
     "topic_suggestion": "",
 }
 for key, default in defaults.items():
@@ -416,20 +452,33 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
         return None
     return data
 
-def format_quiz_as_text(quiz_data: dict) -> str:
-    out = ""
+def format_quiz_as_text(quiz_data: dict, topic: str = "") -> str:
+    import datetime
+    divider = "=" * 60
+    thin    = "-" * 60
+    out = divider + "\n"
+    out += "  QUIZCRAFT — AI-Generated Quiz\n"
+    if topic:
+        out += f"  Topic: {topic}\n"
+    out += f"  Generated: {datetime.datetime.now().strftime('%B %d, %Y')}\n"
+    out += divider + "\n\n"
+
     for i, q in enumerate(quiz_data.get("quiz", []), 1):
-        out += f"{i}. {q['question']}\n"
         qtype = q.get("type", "").strip().lower()
+        out += f"{i}.  {q['question']}\n"
         if qtype == "multiple choice":
             for idx, opt in enumerate(q.get("options", []), 1):
-                out += f"   {chr(96+idx)}. {opt}\n"
+                out += f"     {chr(96+idx)})  {opt}\n"
         elif qtype == "true/false":
-            out += "   a. True\n   b. False\n"
+            out += "     a)  True\n"
+            out += "     b)  False\n"
         elif qtype == "fill in the blanks":
-            out += "   (Write your answer on the blank)\n"
+            out += "     Answer: ___________________________\n"
         out += "\n"
-    out += "\n─── Answer Key ───\n"
+
+    out += thin + "\n"
+    out += "  ANSWER KEY\n"
+    out += thin + "\n"
     for i, q in enumerate(quiz_data.get("quiz", []), 1):
         answer = q.get("answer", "")
         qtype = q.get("type", "").strip().lower()
@@ -438,23 +487,100 @@ def format_quiz_as_text(quiz_data: dict) -> str:
             answer_clean = answer.split(". ", 1)[-1] if ". " in answer else answer
             try:
                 idx = opts.index(answer_clean)
-                out += f"{i}. ({chr(97+idx)}) {answer_clean}\n"
+                out += f"  {i}.  ({chr(97+idx)})  {answer_clean}\n"
             except ValueError:
-                out += f"{i}. {answer}\n"
+                out += f"  {i}.  {answer}\n"
         elif qtype == "true/false":
-            out += f"{i}. ({'a' if str(answer).lower() == 'true' else 'b'}) {answer}\n"
+            out += f"  {i}.  ({'a' if str(answer).lower() == 'true' else 'b'})  {answer}\n"
         else:
-            out += f"{i}. {answer}\n"
+            out += f"  {i}.  {answer}\n"
+
+    out += "\n" + divider + "\n"
+    out += "  Created with QuizCraft  |  github.com/NimaShafie/quiz-craft\n"
+    out += divider + "\n"
     return out
 
-def generate_quiz_pdf(quiz_text: str) -> bytes:
+def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
+    import datetime
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    for line in quiz_text.split("\n"):
-        safe_line = line.encode("latin-1", errors="replace").decode("latin-1")
-        pdf.multi_cell(0, 8, safe_line)
+
+    # Header bar
+    pdf.set_fill_color(30, 40, 55)
+    pdf.rect(0, 0, 210, 28, "F")
+    pdf.set_text_color(240, 200, 170)
+    pdf.set_font("Arial", "B", 18)
+    pdf.set_xy(10, 6)
+    pdf.cell(0, 10, "QuizCraft", ln=False)
+    pdf.set_font("Arial", "", 9)
+    pdf.set_text_color(160, 180, 190)
+    pdf.set_xy(10, 17)
+    label = f"Topic: {topic}  |  " if topic else ""
+    pdf.cell(0, 6, f"{label}Generated: {datetime.datetime.now().strftime('%B %d, %Y')}", ln=True)
+
+    pdf.set_text_color(30, 40, 55)
+    pdf.ln(8)
+
+    questions = quiz_data.get("quiz", [])
+    for i, q in enumerate(questions, 1):
+        qtype = q.get("type", "").strip().lower()
+
+        # Question number + text
+        pdf.set_font("Arial", "B", 11)
+        pdf.set_text_color(40, 55, 70)
+        safe_q = f"{i}.  {q['question']}".encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(0, 7, safe_q)
+        pdf.set_font("Arial", "", 10)
+        pdf.set_text_color(60, 75, 90)
+
+        if qtype == "multiple choice":
+            for idx, opt in enumerate(q.get("options", []), 1):
+                safe_opt = f"     {chr(96+idx)})  {opt}".encode("latin-1", errors="replace").decode("latin-1")
+                pdf.multi_cell(0, 6, safe_opt)
+        elif qtype == "true/false":
+            pdf.cell(0, 6, "     a)  True", ln=True)
+            pdf.cell(0, 6, "     b)  False", ln=True)
+        elif qtype == "fill in the blanks":
+            pdf.cell(0, 6, "     Answer: ___________________________", ln=True)
+        pdf.ln(3)
+
+    # Answer key section
+    pdf.ln(4)
+    pdf.set_fill_color(245, 240, 235)
+    pdf.set_draw_color(200, 160, 130)
+    pdf.set_line_width(0.4)
+    pdf.set_font("Arial", "B", 12)
+    pdf.set_text_color(150, 80, 50)
+    pdf.cell(0, 8, "  Answer Key", ln=True, fill=True, border="B")
+    pdf.ln(2)
+
+    pdf.set_font("Arial", "", 10)
+    pdf.set_text_color(40, 55, 70)
+    for i, q in enumerate(questions, 1):
+        answer = q.get("answer", "")
+        qtype = q.get("type", "").strip().lower()
+        if qtype == "multiple choice":
+            opts = q.get("options", [])
+            answer_clean = answer.split(". ", 1)[-1] if ". " in answer else answer
+            try:
+                idx = opts.index(answer_clean)
+                ans_text = f"  {i}.  ({chr(97+idx)})  {answer_clean}"
+            except ValueError:
+                ans_text = f"  {i}.  {answer}"
+        elif qtype == "true/false":
+            ans_text = f"  {i}.  ({'a' if str(answer).lower() == 'true' else 'b'})  {answer}"
+        else:
+            ans_text = f"  {i}.  {answer}"
+        safe_ans = ans_text.encode("latin-1", errors="replace").decode("latin-1")
+        pdf.multi_cell(0, 6, safe_ans)
+
+    # Footer
+    pdf.ln(6)
+    pdf.set_font("Arial", "I", 8)
+    pdf.set_text_color(140, 160, 170)
+    pdf.cell(0, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft", ln=True, align="C")
+
     return pdf.output(dest="S").encode("latin-1")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -486,11 +612,11 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 # UI — Topic suggestions
 # ─────────────────────────────────────────────────────────────────────────────
-st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.5rem;">Quick topics</p>')
-_topic_cols = st.columns(4)
+st.html('<p style="color:#6a8090;font-size:0.8rem;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:0.4rem;">Quick topics</p>')
+cols = st.columns(len(TOPIC_SUGGESTIONS))
 for i, topic in enumerate(TOPIC_SUGGESTIONS):
-    with _topic_cols[i % 4]:
-        if st.button(topic, key=f"topic_{i}", use_container_width=True):
+    with cols[i]:
+        if st.button(topic, key=f"topic_{i}"):
             st.session_state.topic_suggestion = topic
             st.rerun()
 
@@ -572,6 +698,7 @@ if submit:
                 record_request()
             st.session_state.quiz_data = quiz_data
             st.session_state.quiz_generated = True
+            st.session_state.quiz_topic = safe_prompt[:60]
             status.update(label="Quiz ready!", state="complete", expanded=False)
             st.toast("Quiz ready!")
         else:
@@ -587,10 +714,10 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
     st.markdown("---")
     quiz_data = st.session_state.quiz_data
     questions = quiz_data.get("quiz", [])
-    formatted = format_quiz_as_text(quiz_data)
+    formatted = format_quiz_as_text(quiz_data, topic=st.session_state.get("quiz_topic", ""))
 
     try:
-        pdf_bytes = generate_quiz_pdf(formatted)
+        pdf_bytes = generate_quiz_pdf(quiz_data, topic=st.session_state.get("quiz_topic", ""))
     except Exception as e:
         _logger.error("PDF error: %s\n%s", e, traceback.format_exc())
         pdf_bytes = None
@@ -628,8 +755,11 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
             if idx < len(takeable):
                 q = takeable[idx]
                 progress_val = idx / len(takeable)
-                st.progress(progress_val, text=f"Question {idx + 1} of {len(takeable)}")
-                st.markdown(f"**{idx + 1}. {q['question']}**")
+                st.html(f'''<div class="quiz-question-card">
+            <div class="quiz-q-number">Question {idx + 1} of {len(takeable)}</div>
+            <div class="quiz-q-text">{q["question"]}</div>
+        </div>''')
+                st.progress(progress_val)
 
                 opts = q.get("options", ["True", "False"])
                 for opt in opts:

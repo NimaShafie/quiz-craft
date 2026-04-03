@@ -33,9 +33,8 @@ RATE_LIMIT_WINDOW_SEC = 3600
 COOLDOWN_SEC          = 15
 
 TOPIC_SUGGESTIONS = [
-    "World War II", "Human anatomy", "Python programming",
-    "The French Revolution", "Climate change", "Solar system",
-    "Ancient Rome", "Machine learning basics",
+    "World War II", "Human anatomy", "Python basics", "Climate change",
+    "Ancient Rome", "Solar system", "Cell biology", "World geography",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

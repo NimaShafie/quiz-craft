@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . /app
 
+# Streamlit config
+RUN mkdir -p /root/.streamlit
+COPY streamlit_config/config.toml /root/.streamlit/config.toml
+
 # Streamlit default port
 EXPOSE 8501
 EXPOSE 8502

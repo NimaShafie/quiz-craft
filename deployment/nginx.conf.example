@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name quizcraft.shafie.org;
+    server_name YOUR_DOMAIN;
 
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/html;

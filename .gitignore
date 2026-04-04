@@ -39,3 +39,4 @@ Thumbs.db
 # Deployment — personal configs with tunnel credentials/domain
 deployment/cloudflared.conf
 deployment/nginx.conf
+logs/

@@ -20,6 +20,7 @@ import traceback
 import streamlit as st
 from fpdf import FPDF
 from dataclasses import dataclass, field
+from generate_quiz_from_prompt import _ABUSE_PATTERNS  # single source of truth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mode + Config
@@ -338,11 +339,6 @@ class _IPRecord:
 
 _ip_store: dict = {}
 
-_ABUSE_PATTERNS = re.compile(
-    r"(ignore (previous|above|all) instructions?|disregard|forget (everything|all)|"
-    r"you are now|act as|pretend (you are|to be)|system prompt|override|jailbreak|"
-    r"repeat after me|say exactly)", re.IGNORECASE,
-)
 
 def _get_client_ip() -> str:
     try:
@@ -432,7 +428,8 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
     types_csv = ",".join(question_types)
     try:
         result = subprocess.run(
-            [sys.executable, GEN_SCRIPT, str(n_questions), difficulty, user_prompt, types_csv],
+            [sys.executable, GEN_SCRIPT, str(n_questions), difficulty, types_csv],
+            input=user_prompt,          # prompt passed via stdin — safe for any content
             capture_output=True, text=True, timeout=180,
         )
     except subprocess.TimeoutExpired:

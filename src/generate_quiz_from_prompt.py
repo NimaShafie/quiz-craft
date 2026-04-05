@@ -250,17 +250,18 @@ def generate_quiz(number_of_questions=5, difficulty="Medium", user_prompt="", qu
 
 
 def main():
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 4:
         sys.stderr.write(
-            "Usage: python generate_quiz_from_prompt.py "
-            "<n_questions> <difficulty> <user_prompt> <question_types_csv>\n"
+            "Usage: echo <prompt> | python generate_quiz_from_prompt.py "
+            "<n_questions> <difficulty> <question_types_csv>\n"
         )
         sys.exit(1)
 
     n = int(sys.argv[1])
     difficulty = sys.argv[2]
-    user_prompt = sys.argv[3]
-    question_types = [t.strip() for t in sys.argv[4].split(",") if t.strip()]
+    question_types = [t.strip() for t in sys.argv[3].split(",") if t.strip()]
+    # Read prompt from stdin — avoids shell argument length limits and special char issues
+    user_prompt = sys.stdin.read()
 
     result = generate_quiz(n, difficulty, user_prompt, question_types)
     # ONLY output JSON to stdout — QuizCraft.py regex-parses this

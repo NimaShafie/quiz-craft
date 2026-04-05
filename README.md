@@ -119,11 +119,11 @@ quiz-craft/
 ├── src/
 │   ├── QuizCraft.py                  # Main app (single file, both modes)
 │   ├── generate_quiz_from_prompt.py  # LLM quiz generation logic
-│   ├── generate_quiz_on_file.py      # File-based generation (advanced)
+
 │   └── config_reader.py              # Config + env var reader
 ├── deployment/
-│   ├── nginx.conf                    # nginx reverse proxy config
-│   └── cloudflared.conf              # Cloudflare tunnel config
+│   ├── nginx.conf.example            # nginx reverse proxy config template
+│   └── cloudflared.conf.example      # Cloudflare tunnel config template
 ├── images/logo/
 │   └── quiz-craft-logo.png
 ├── tests/

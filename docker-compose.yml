@@ -10,7 +10,7 @@ services:
     container_name: quizcraft_ollama
     environment:
       - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_KEEP_ALIVE=5m
+      - OLLAMA_KEEP_ALIVE=24h
     ports:
       - "11434:11434"
     volumes:

@@ -51,6 +51,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: quizcraft_v1
+    profiles: ["dev"]
     ports:
       - "8501:8501"
     environment:

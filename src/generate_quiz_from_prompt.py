@@ -149,6 +149,7 @@ def call_ollama(prompt, model, host, temperature):
         "prompt": prompt,
         "stream": False,
         "format": "json",
+        "think": False,
         "options": {
             "temperature": temperature,
             "num_predict": 4096,
@@ -165,6 +166,8 @@ def call_ollama(prompt, model, host, temperature):
 
 
 def extract_quiz_json(raw):
+    # qwen3 and other reasoning models emit <think>...</think> blocks before the JSON
+    raw = re.sub(r"<think>[\s\S]*?</think>", "", raw).strip()
     try:
         data = json.loads(raw)
         if "quiz" in data:

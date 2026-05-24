@@ -1,49 +1,8 @@
 # QuizCraft — Docker Compose
-# Version 1 (self-hosted): docker compose up
+# Version 1 (self-hosted): docker compose --profile dev up
 # Version 2 (hosted):      docker compose --profile hosted up
 
 services:
-
-  # ── Ollama LLM backend ────────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: quizcraft_ollama
-    environment:
-      - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_KEEP_ALIVE=24h
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    restart: unless-stopped
-    networks:
-      - quizcraft_net
-    # GPU support — uncomment if you have NVIDIA GPU + nvidia-container-toolkit
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-
-  # ── Pull the model on first start ─────────────────────────────────────────
-  ollama_pull:
-    image: curlimages/curl:latest
-    container_name: quizcraft_model_pull
-    depends_on:
-      - ollama
-    entrypoint: >
-      sh -c "
-        echo 'Waiting for Ollama...';
-        until curl -sf http://ollama:11434/api/tags > /dev/null; do sleep 2; done;
-        echo 'Pulling qwen3:4b ...';
-        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"qwen3:4b\"}';
-        echo 'Model ready.'
-      "
-    networks:
-      - quizcraft_net
-    restart: "no"
 
   # ── Version 1: Self-hosted (personal use) ─────────────────────────────────
   quizcraft_v1:
@@ -55,10 +14,8 @@ services:
     ports:
       - "8501:8501"
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_HOST=http://10.0.0.12:11434
       - OLLAMA_MODEL=qwen3:4b
-    depends_on:
-      - ollama
     command: streamlit run src/quiz_craft.py --server.port=8501 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
@@ -75,18 +32,13 @@ services:
     ports:
       - "8502:8502"
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_HOST=http://10.0.0.12:11434
       - OLLAMA_MODEL=qwen3:4b
       - HOSTED_MODE=true
-    depends_on:
-      - ollama
     command: streamlit run src/quiz_craft.py --server.port=8502 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
       - quizcraft_net
-
-volumes:
-  ollama_models:
 
 networks:
   quizcraft_net:

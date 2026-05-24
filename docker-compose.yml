@@ -37,8 +37,8 @@ services:
       sh -c "
         echo 'Waiting for Ollama...';
         until curl -sf http://ollama:11434/api/tags > /dev/null; do sleep 2; done;
-        echo 'Pulling gemma3:4b ...';
-        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"gemma3:4b\"}';
+        echo 'Pulling qwen3:4b ...';
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"qwen3:4b\"}';
         echo 'Model ready.'
       "
     networks:
@@ -56,7 +56,7 @@ services:
       - "8501:8501"
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=gemma3:4b
+      - OLLAMA_MODEL=qwen3:4b
     depends_on:
       - ollama
     command: streamlit run src/quiz_craft.py --server.port=8501 --server.address=0.0.0.0
@@ -76,7 +76,7 @@ services:
       - "8502:8502"
     environment:
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=gemma3:4b
+      - OLLAMA_MODEL=qwen3:4b
       - HOSTED_MODE=true
     depends_on:
       - ollama

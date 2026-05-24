@@ -25,14 +25,28 @@ Tests are offline — no Ollama connection required. They cover:
 
 ## Integration Testing
 
-To test end-to-end with a live Ollama instance:
+To test end-to-end with a live Ollama instance, confirm the server is reachable and the model is pulled first:
 
 ```bash
-# Verify Ollama is running and model is pulled
+# Check what models are available on the Ollama server
 ollama list
 
-# Run a single quiz generation
-python src/generate_quiz_from_prompt.py 5 Easy "basic Python syntax" "Multiple Choice"
-
-# Should print valid JSON with 5 questions
+# Or if using a remote server
+curl http://<server-ip>:11434/api/tags
 ```
+
+Run a single quiz generation by piping the topic via stdin:
+
+```bash
+# Local Ollama (default)
+echo "basic Python syntax" | python src/generate_quiz_from_prompt.py 5 Easy "Multiple Choice"
+
+# Remote Ollama — set the host first
+export OLLAMA_HOST=http://<server-ip>:11434
+export OLLAMA_MODEL=qwen3:4b
+echo "basic Python syntax" | python src/generate_quiz_from_prompt.py 5 Easy "Multiple Choice"
+```
+
+Should print valid JSON with 5 questions to stdout.
+
+The prompt is read from stdin (not as a positional argument) to safely handle any text content without shell escaping issues.

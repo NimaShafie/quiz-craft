@@ -1,8 +1,8 @@
 """
-test_quizcraft.py
+test_quiz_craft.py
 Unit tests for QuizCraft core logic (no Ollama, no Streamlit required).
 Author: Nima Shafie
-Run with: python -m pytest tests/test_quizcraft.py -v
+Run with: python -m pytest tests/test_quiz_craft.py -v
 """
 
 import sys, os, json

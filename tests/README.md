@@ -7,7 +7,7 @@
 pip install pytest
 
 # From project root
-python -m pytest tests/test_quizcraft.py -v
+python -m pytest tests/test_quiz_craft.py -v
 ```
 
 Tests are offline — no Ollama connection required. They cover:

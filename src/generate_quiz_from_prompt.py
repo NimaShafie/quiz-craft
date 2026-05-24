@@ -21,17 +21,23 @@ import requests
 
 def get_ollama_config():
     """Read Ollama host and model from environment or config.ini fallback."""
-    host = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+    host = os.environ.get("OLLAMA_HOST", "").rstrip("/")
     model = os.environ.get("OLLAMA_MODEL", "")
-    if not model:
+    if not host or not model:
         try:
             import configparser
             cfg = configparser.ConfigParser()
             cfg_path = os.path.join(os.path.dirname(__file__), "..", "config.ini")
             cfg.read(cfg_path)
-            model = cfg.get("OLLAMA_DETAILS", "model_name", fallback="gemma3:4b")
+            if not host:
+                host = cfg.get("OLLAMA_DETAILS", "ollama_host", fallback="http://localhost:11434").rstrip("/")
+            if not model:
+                model = cfg.get("OLLAMA_DETAILS", "model_name", fallback="gemma3:4b")
         except Exception:
-            model = "gemma3:4b"
+            if not host:
+                host = "http://localhost:11434"
+            if not model:
+                model = "gemma3:4b"
     return host, model
 
 
@@ -149,7 +155,12 @@ def call_ollama(prompt, model, host, temperature):
         },
     }
     resp = requests.post(url, json=payload, timeout=180)
-    resp.raise_for_status()
+    if not resp.ok:
+        try:
+            err = resp.json().get("error") or resp.text
+        except Exception:
+            err = resp.text or f"HTTP {resp.status_code}"
+        raise requests.exceptions.HTTPError(err, response=resp)
     return resp.json().get("response", "")
 
 
@@ -264,7 +275,7 @@ def main():
     user_prompt = sys.stdin.read()
 
     result = generate_quiz(n, difficulty, user_prompt, question_types)
-    # ONLY output JSON to stdout — QuizCraft.py regex-parses this
+    # ONLY output JSON to stdout — quiz_craft.py regex-parses this
     print(json.dumps(result))
 
 

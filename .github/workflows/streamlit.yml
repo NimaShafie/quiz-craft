@@ -25,6 +25,6 @@ jobs:
         run: pip install -r requirements.txt pytest
 
       - name: Run offline unit tests
-        run: python -m pytest tests/test_quizcraft.py -v
+        run: python -m pytest tests/test_quiz_craft.py -v
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

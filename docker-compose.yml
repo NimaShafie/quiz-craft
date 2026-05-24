@@ -59,7 +59,7 @@ services:
       - OLLAMA_MODEL=gemma3:4b
     depends_on:
       - ollama
-    command: streamlit run src/QuizCraft.py --server.port=8501 --server.address=0.0.0.0
+    command: streamlit run src/quiz_craft.py --server.port=8501 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
       - quizcraft_net
@@ -80,7 +80,7 @@ services:
       - HOSTED_MODE=true
     depends_on:
       - ollama
-    command: streamlit run src/QuizCraft.py --server.port=8502 --server.address=0.0.0.0
+    command: streamlit run src/quiz_craft.py --server.port=8502 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
       - quizcraft_net

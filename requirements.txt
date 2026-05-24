@@ -2,16 +2,16 @@
 # Tested with Python 3.11 / 3.12
 
 # Web UI
-streamlit>=1.40.0
+streamlit>=1.57.0
 
 # LLM backend (Ollama direct HTTP — no llama-index needed)
-requests>=2.32.0
+requests>=2.34.2
 
 # PDF generation (quiz export)
-fpdf==1.7.2
+fpdf2>=2.7.9
 
 # PDF reading (file upload feature)
-pypdf>=5.1.0
+pypdf>=6.12.1
 
 # Config parsing (stdlib, listed for clarity)
 # configparser — stdlib

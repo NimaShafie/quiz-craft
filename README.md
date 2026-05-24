@@ -21,7 +21,7 @@ QuizCraft generates custom quizzes from any topic or uploaded text file using a 
 
 ## Architecture
 
-A single `QuizCraft.py` file powers both deployment modes via an environment variable:
+A single `quiz_craft.py` file powers both deployment modes via an environment variable:
 
 ```
 HOSTED_MODE=false  →  Port 8501  (self-hosted, no limits, 40 questions max)
@@ -70,7 +70,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 ollama pull gemma3:4b
 ollama serve &
 
-streamlit run src/QuizCraft.py
+streamlit run src/quiz_craft.py
 ```
 
 Open **http://localhost:8501**
@@ -117,17 +117,15 @@ ollama_host = http://localhost:11434
 ```
 quiz-craft/
 ├── src/
-│   ├── QuizCraft.py                  # Main app (single file, both modes)
-│   ├── generate_quiz_from_prompt.py  # LLM quiz generation logic
-
-│   └── config_reader.py              # Config + env var reader
+│   ├── quiz_craft.py                 # Main app (single file, both modes)
+│   └── generate_quiz_from_prompt.py  # LLM quiz generation logic
 ├── deployment/
 │   ├── nginx.conf.example            # nginx reverse proxy config template
 │   └── cloudflared.conf.example      # Cloudflare tunnel config template
 ├── images/logo/
 │   └── quiz-craft-logo.png
 ├── tests/
-│   └── test_quizcraft.py             # Offline unit tests (32 checks)
+│   └── test_quiz_craft.py            # Offline unit tests (32 checks)
 ├── docs/                             # Project documentation
 ├── config.ini                        # Model + Ollama config
 ├── requirements.txt                  # Python dependencies

@@ -26,4 +26,4 @@ EXPOSE 8501
 EXPOSE 8502
 
 # Default: Version 1 (override with docker compose command)
-CMD ["streamlit", "run", "src/QuizCraft.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "src/quiz_craft.py", "--server.port=8501", "--server.address=0.0.0.0"]

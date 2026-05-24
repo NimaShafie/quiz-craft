@@ -1,11 +1,11 @@
 """
-QuizCraft.py — AI-powered quiz generator using a local Ollama model.
+quiz_craft.py — AI-powered quiz generator using a local Ollama model.
 
 Author: Nima Shafie
 
 Usage:
-    streamlit run src/QuizCraft.py
-    HOSTED_MODE=true streamlit run src/QuizCraft.py
+    streamlit run src/quiz_craft.py
+    HOSTED_MODE=true streamlit run src/quiz_craft.py
 """
 
 import json
@@ -17,10 +17,11 @@ import subprocess
 import hashlib
 import logging
 import traceback
+import requests
 import streamlit as st
 from fpdf import FPDF
 from dataclasses import dataclass, field
-from generate_quiz_from_prompt import _ABUSE_PATTERNS  # single source of truth
+from generate_quiz_from_prompt import _INJECTION_PATTERNS, get_ollama_config  # single source of truth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mode + Config
@@ -88,7 +89,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 #MainMenu, footer, header { visibility: hidden; }
 .stDeployButton { display: none; }
 
-.block-container { padding-top: 1rem !important; max-width: 780px !important; }
+.block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; max-width: 780px !important; }
 
 /* Logo */
 #qc-logo-wrap {
@@ -309,7 +310,7 @@ label, [data-testid="stWidgetLabel"] p {
 /* Footer */
 .qc-footer {
     text-align: center; color: #2a4050; font-size: 0.75rem;
-    margin-top: 2.5rem; padding: 1.5rem 0 1rem 0;
+    margin-top: 1rem; padding: 0.8rem 0 0.5rem 0;
     border-top: 1px solid rgba(255,255,255,0.05);
     letter-spacing: 0.3px; line-height: 1.8;
 }
@@ -328,6 +329,27 @@ if os.path.exists(LOGO_PATH):
     st.html(_THEME_CSS + '<div id="qc-logo-wrap"><img id="qc-logo" src="data:image/png;base64,' + _logo_data + '" /></div>')
 else:
     st.html(_THEME_CSS)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ollama health check
+# ─────────────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=30)
+def _check_ollama_health() -> tuple:
+    """Returns (is_healthy: bool, detail: str). Cached for 30 s."""
+    try:
+        host, model = get_ollama_config()
+        resp = requests.get(f"{host}/api/tags", timeout=3)
+        if not resp.ok:
+            return False, f"Ollama at {host} returned HTTP {resp.status_code}"
+        pulled = [m.get("name", "") for m in resp.json().get("models", [])]
+        if not any(model in name for name in pulled):
+            return False, f"Model `{model}` not pulled. Run: `ollama pull {model}`"
+        return True, ""
+    except requests.exceptions.ConnectionError:
+        host, _ = get_ollama_config()
+        return False, f"Cannot reach Ollama at {host}. Is it running?"
+    except Exception as e:
+        return False, str(e)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Rate limiting
@@ -389,7 +411,7 @@ def validate_input(text: str) -> tuple:
     if not text: return False, "", "Please enter a topic or paste some text."
     if HOSTED_MODE:
         text = text[:MAX_PROMPT_CHARS]
-        if _ABUSE_PATTERNS.search(text):
+        if _INJECTION_PATTERNS.search(text):
             return False, "", "Your input contains phrases that look like attempts to misuse the AI. Please enter a genuine quiz topic."
         if len(text.split()) < 2:
             return False, text, "Please enter a more descriptive topic (at least 2 words)."
@@ -602,15 +624,19 @@ if HOSTED_MODE:
     st.html(f'<div class="quota-badge" style="color:{color};">{remaining}/{total} generations remaining this hour</div>')
 else:
     st.caption("AI-powered quiz generator — self-hosted with Ollama")
-    with st.expander("Setup — first time?", expanded=False):
-        st.markdown("""
+    _ollama_ok, _ollama_detail = _check_ollama_health()
+    if not _ollama_ok:
+        with st.expander("Setup — first time?", expanded=True):
+            if _ollama_detail:
+                st.warning(_ollama_detail)
+            st.markdown("""
 **Requirements:** [Ollama](https://ollama.com) must be running on your machine.
 ```bash
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull gemma3:4b
-streamlit run src/QuizCraft.py
+streamlit run src/quiz_craft.py
 ```
-Edit `config.ini` to change the model.
+Edit `config.ini` to change the model or host.
 """)
 
 st.markdown("---")

@@ -40,6 +40,44 @@ TOPIC_SUGGESTIONS = [
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Backend helpers (computed once per Streamlit re-run)
+# ─────────────────────────────────────────────────────────────────────────────
+_backend_cfg = get_backend_config()
+
+_KNOWN_PROVIDERS = {
+    "api.groq.com":       ("Groq",        "https://groq.com"),
+    "openrouter.ai":      ("OpenRouter",   "https://openrouter.ai"),
+    "api.together.xyz":   ("Together.ai",  "https://www.together.ai"),
+    "api.openai.com":     ("OpenAI",       "https://openai.com"),
+}
+
+def _backend_display_name(cfg: dict) -> str:
+    if cfg["type"] == "openai":
+        base = cfg.get("base_url", "")
+        for domain, (name, _) in _KNOWN_PROVIDERS.items():
+            if domain in base:
+                return name
+        if ":1234" in base:
+            return "LM Studio"
+        host = base.split("//")[-1].split("/")[0]
+        return host or "LLM"
+    return "Ollama"
+
+def _backend_footer_html(cfg: dict) -> tuple[str, str, str]:
+    """Return (backend_html, model_name, model_url) for the footer."""
+    if cfg["type"] == "openai":
+        base = cfg["base_url"]
+        host = base.split("//")[-1].split("/")[0]
+        for domain, (name, url) in _KNOWN_PROVIDERS.items():
+            if domain in host:
+                return f'<a href="{url}">{name}</a>', cfg["model"], base
+        label = "LM Studio" if ":1234" in host else host
+        return f'<a href="{base}">{label}</a>', cfg["model"], base
+    model = cfg.get("model", "")
+    model_base = model.split(":")[0]
+    return '<a href="https://ollama.com">Ollama</a>', model, f'https://ollama.com/library/{model_base}'
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Page config
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -536,26 +574,57 @@ def format_quiz_as_text(quiz_data: dict, topic: str = "") -> str:
     out += divider + "\n"
     return out
 
+def _load_pdf_fonts(pdf: "FPDF") -> str:
+    """Load a Unicode-capable TTF font family; return the family name to use."""
+    import os
+    candidates = [
+        # (regular, bold, italic)
+        (r"C:\Windows\Fonts\arial.ttf", r"C:\Windows\Fonts\arialbd.ttf", r"C:\Windows\Fonts\ariali.ttf"),
+        ("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+         "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"),
+        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"),
+    ]
+    for reg, bold, italic in candidates:
+        if os.path.exists(reg):
+            pdf.add_font("QCFont", "", reg)
+            pdf.add_font("QCFont", "B", bold if os.path.exists(bold) else reg)
+            pdf.add_font("QCFont", "I", italic if os.path.exists(italic) else reg)
+            return "QCFont"
+    return "Helvetica"
+
+
 def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     import datetime
     from fpdf.enums import XPos, YPos
+
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
     w = pdf.epw
 
+    font = _load_pdf_fonts(pdf)
+
+    def t(text: str) -> str:
+        if font == "Helvetica":
+            return text.encode("latin-1", errors="replace").decode("latin-1")
+        return text
+
     # Header bar
     pdf.set_fill_color(30, 40, 55)
     pdf.rect(0, 0, 210, 28, "F")
     pdf.set_text_color(240, 200, 170)
-    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_font(font, "B", 18)
     pdf.set_xy(10, 6)
     pdf.cell(w, 10, "QuizCraft", new_x=XPos.LMARGIN, new_y=YPos.TOP)
-    pdf.set_font("Helvetica", "", 9)
+    pdf.set_font(font, "", 9)
     pdf.set_text_color(160, 180, 190)
     pdf.set_xy(10, 17)
     label = f"Topic: {topic}  |  " if topic else ""
-    pdf.cell(w, 6, f"{label}Generated: {datetime.datetime.now().strftime('%B %d, %Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(w, 6, t(f"{label}Generated: {datetime.datetime.now().strftime('%B %d, %Y')}"),
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_text_color(30, 40, 55)
     pdf.ln(8)
@@ -564,23 +633,23 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     for i, q in enumerate(questions, 1):
         qtype = q.get("type", "").strip().lower()
 
-        # Question number + text
-        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_font(font, "B", 11)
         pdf.set_text_color(40, 55, 70)
-        safe_q = f"{i}.  {q['question']}".encode("latin-1", errors="replace").decode("latin-1")
-        pdf.multi_cell(w, 7, safe_q, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(w, 7, t(f"{i}.  {q.get('question', '')}"),
+                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font(font, "", 10)
         pdf.set_text_color(60, 75, 90)
 
         if qtype == "multiple choice":
             for idx, opt in enumerate(q.get("options", []), 1):
-                safe_opt = f"     {chr(96+idx)})  {opt}".encode("latin-1", errors="replace").decode("latin-1")
-                pdf.multi_cell(w, 6, safe_opt, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                pdf.multi_cell(w, 6, t(f"     {chr(96+idx)})  {opt}"),
+                               new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         elif qtype == "true/false":
             pdf.cell(w, 6, "     a)  True", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.cell(w, 6, "     b)  False", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         elif qtype == "fill in the blanks":
-            pdf.cell(w, 6, "     Answer: ___________________________", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(w, 6, "     Answer: ___________________________",
+                     new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(3)
 
     # Answer key section
@@ -588,12 +657,12 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     pdf.set_fill_color(245, 240, 235)
     pdf.set_draw_color(200, 160, 130)
     pdf.set_line_width(0.4)
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font(font, "B", 12)
     pdf.set_text_color(150, 80, 50)
     pdf.cell(w, 8, "  Answer Key", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, border="B")
     pdf.ln(2)
 
-    pdf.set_font("Helvetica", "", 10)
+    pdf.set_font(font, "", 10)
     pdf.set_text_color(40, 55, 70)
     for i, q in enumerate(questions, 1):
         answer = q.get("answer", "")
@@ -610,14 +679,14 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
             ans_text = f"  {i}.  ({'a' if str(answer).lower() == 'true' else 'b'})  {answer}"
         else:
             ans_text = f"  {i}.  {answer}"
-        safe_ans = ans_text.encode("latin-1", errors="replace").decode("latin-1")
-        pdf.multi_cell(w, 6, safe_ans, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(w, 6, t(ans_text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Footer
     pdf.ln(6)
-    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_font(font, "I", 8)
     pdf.set_text_color(140, 160, 170)
-    pdf.cell(w, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
+    pdf.cell(w, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
 
     return bytes(pdf.output())
 
@@ -627,13 +696,13 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
 st.title("QuizCraft")
 
 if HOSTED_MODE:
-    st.caption("AI-powered quiz generator — free to use, no account required")
+    st.caption("AI-powered quiz generator — free to use, works with any local or cloud LLM")
     used, total = get_remaining_quota()
     remaining = total - used
     color = "#4caf82" if remaining >= 3 else ("#f0a050" if remaining >= 1 else "#e05050")
     st.html(f'<div class="quota-badge" style="color:{color};">{remaining}/{total} generations remaining this hour</div>')
 else:
-    st.caption("AI-powered quiz generator — use any local or cloud LLM")
+    st.caption(f"AI-powered quiz generator — powered by {_backend_display_name(_backend_cfg)} · swap any local or cloud LLM via config")
     _llm_ok, _llm_detail = _check_llm_health()
     if not _llm_ok:
         _cfg = get_backend_config()
@@ -767,7 +836,7 @@ if submit:
     with st.status("Generating quiz...", expanded=True) as status:
         st.write(f"Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
         st.write("This takes 15-30 seconds on CPU — please wait...")
-        st.progress(0.3, text="Sending request to AI...")
+        st.progress(0.3, text=f"Sending request to {_backend_display_name(_backend_cfg)}...")
         quiz_data = run_generate_quiz(n_questions, difficulty, safe_prompt, question_types)
         if quiz_data:
             if HOSTED_MODE:
@@ -908,15 +977,7 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
 # ─────────────────────────────────────────────────────────────────────────────
 # Footer
 # ─────────────────────────────────────────────────────────────────────────────
-_footer_cfg = get_backend_config()
-if _footer_cfg["type"] == "openai":
-    _footer_backend = f'<a href="{_footer_cfg["base_url"]}">{_footer_cfg["base_url"].split("//")[-1].split("/")[0]}</a>'
-    _footer_model = _footer_cfg["model"]
-    _footer_model_url = _footer_cfg["base_url"]
-else:
-    _footer_backend = '<a href="https://ollama.com">Ollama</a>'
-    _footer_model = _footer_cfg.get("model", "")
-    _footer_model_url = f'https://ollama.com/library/{_footer_model.split(":")[0]}'
+_footer_backend, _footer_model, _footer_model_url = _backend_footer_html(_backend_cfg)
 
 st.html(f'''<div class="qc-footer">
     <strong style="color:#4a7080;letter-spacing:1px;">QUIZCRAFT</strong><br>

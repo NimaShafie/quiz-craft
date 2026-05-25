@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from generate_quiz_from_prompt import generate_quiz, get_ollama_config, DIFFICULTY_PROFILES
+from generate_quiz_from_prompt import generate_quiz, get_backend_config, DIFFICULTY_PROFILES
 
 # ─────────────────────────────────────────────────────────────────────────────
 # App
@@ -30,8 +30,9 @@ from generate_quiz_from_prompt import generate_quiz, get_ollama_config, DIFFICUL
 app = FastAPI(
     title="QuizCraft API",
     description=(
-        "Generate AI-powered quizzes from any topic or text using a local Ollama model. "
-        "No API keys required — all inference runs on your machine.\n\n"
+        "Generate AI-powered quizzes from any topic or text. "
+        "Works with Ollama (local), LM Studio, Groq, OpenRouter, Together.ai, "
+        "or any OpenAI-compatible LLM. Set `LLM_BACKEND=openai` to switch backends.\n\n"
         "**Source:** https://github.com/NimaShafie/quiz-craft  \n"
         "**Live demo:** https://quizcraft.shafie.org"
     ),
@@ -112,11 +113,11 @@ class GenerateResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = Field(description="'ok', 'degraded', or 'error'")
-    ollama: bool
-    ollama_host: str = ""
+    backend: str = Field(description="'ollama' or 'openai'")
+    backend_url: str = ""
     model: str = ""
     model_available: bool = False
-    available_models: list[str] = []
+    available_models: list[str] = Field(default=[], description="Pulled models (Ollama only)")
     detail: str = ""
 
 
@@ -126,50 +127,70 @@ class HealthResponse(BaseModel):
 @app.get(
     "/api/v1/health",
     response_model=HealthResponse,
-    summary="Ollama health check",
+    summary="LLM backend health check",
     tags=["Status"],
 )
 def health():
-    """Check whether Ollama is reachable and the configured model is pulled."""
-    host, model = get_ollama_config()
+    """Check whether the configured LLM backend is reachable and the model is available."""
+    cfg = get_backend_config()
     try:
-        resp = _requests.get(f"{host}/api/tags", timeout=3)
-        if not resp.ok:
+        if cfg["type"] == "openai":
+            headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+            resp = _requests.get(f"{cfg['base_url']}/models", headers=headers, timeout=3)
+            if not resp.ok:
+                return HealthResponse(
+                    status="degraded", backend="openai", backend_url=cfg["base_url"],
+                    detail=f"Backend returned HTTP {resp.status_code}",
+                )
             return HealthResponse(
-                status="degraded", ollama=False, ollama_host=host,
-                detail=f"Ollama returned HTTP {resp.status_code}",
+                status="ok", backend="openai", backend_url=cfg["base_url"],
+                model=cfg["model"], model_available=True,
             )
-        pulled = [m.get("name", "") for m in resp.json().get("models", [])]
-        model_available = any(model in name for name in pulled)
-        return HealthResponse(
-            status="ok" if model_available else "degraded",
-            ollama=True,
-            ollama_host=host,
-            model=model,
-            model_available=model_available,
-            available_models=pulled,
-            detail="" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
-        )
+        else:
+            host, model = cfg["host"], cfg["model"]
+            resp = _requests.get(f"{host}/api/tags", timeout=3)
+            if not resp.ok:
+                return HealthResponse(
+                    status="degraded", backend="ollama", backend_url=host,
+                    detail=f"Ollama returned HTTP {resp.status_code}",
+                )
+            pulled = [m.get("name", "") for m in resp.json().get("models", [])]
+            model_available = any(model in name for name in pulled)
+            return HealthResponse(
+                status="ok" if model_available else "degraded",
+                backend="ollama", backend_url=host,
+                model=model, model_available=model_available, available_models=pulled,
+                detail="" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
+            )
     except Exception as e:
-        return HealthResponse(
-            status="error", ollama=False, ollama_host=host, detail=str(e),
-        )
+        target = cfg.get("base_url") or cfg.get("host", "")
+        return HealthResponse(status="error", backend=cfg["type"], backend_url=target, detail=str(e))
 
 
 @app.get(
     "/api/v1/models",
-    summary="List pulled Ollama models",
+    summary="List available models from the LLM backend",
     tags=["Status"],
 )
 def list_models():
-    """Return all models currently pulled on the Ollama server."""
-    host, _ = get_ollama_config()
+    """Return models available on the backend (Ollama: pulled models; OpenAI-compatible: /v1/models list)."""
+    cfg = get_backend_config()
     try:
-        resp = _requests.get(f"{host}/api/tags", timeout=3)
-        resp.raise_for_status()
-        return {"models": [m.get("name") for m in resp.json().get("models", [])]}
+        if cfg["type"] == "openai":
+            headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+            resp = _requests.get(f"{cfg['base_url']}/models", headers=headers, timeout=3)
+            resp.raise_for_status()
+            data = resp.json()
+            models = [m.get("id") for m in data.get("data", [])] or data.get("models", [])
+            return {"backend": "openai", "models": models}
+        else:
+            host = cfg["host"]
+            resp = _requests.get(f"{host}/api/tags", timeout=3)
+            resp.raise_for_status()
+            return {"backend": "ollama", "models": [m.get("name") for m in resp.json().get("models", [])]}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Cannot reach Ollama at {host}: {e}")
+        target = cfg.get("base_url") or cfg.get("host", "")
+        raise HTTPException(status_code=503, detail=f"Cannot reach LLM backend at {target}: {e}")
 
 
 @app.get(
@@ -207,8 +228,8 @@ def generate(req: GenerateRequest):
     """
     Generate an AI-powered quiz from a topic or text passage.
 
-    The LLM runs locally via Ollama — no data leaves your machine.
-    Generation typically takes 15–60 seconds on CPU for a 4B parameter model.
+    The LLM runs via your configured backend (Ollama, LM Studio, Groq, etc.).
+    Local models typically take 15–60 seconds on CPU. Cloud backends (Groq, OpenRouter) respond in seconds.
     """
     result = generate_quiz(
         number_of_questions=req.n_questions,
@@ -221,7 +242,7 @@ def generate(req: GenerateRequest):
     if not result.get("quiz"):
         raise HTTPException(
             status_code=502,
-            detail="Model returned an empty quiz. Try a different topic or check your Ollama setup.",
+            detail="Model returned an empty quiz. Try a different topic or check your LLM backend setup.",
         )
     return GenerateResponse(
         topic=req.topic[:80],

@@ -3,15 +3,15 @@
   "_docs": "https://github.com/NimaShafie/quiz-craft",
   "_prerequisites": [
     "pip install mcp>=1.0.0",
-    "ollama pull qwen3:4b",
-    "ollama serve"
+    "Option A (Ollama): ollama pull qwen3:4b && ollama serve",
+    "Option B (OpenAI-compatible): set LLM_BACKEND=openai + OPENAI_API_BASE + OPENAI_API_KEY + OPENAI_MODEL"
   ],
   "mcpServers": {
     "quizcraft": {
       "command": "python",
       "args": ["src/mcp_server.py"],
       "cwd": "/path/to/quiz-craft",
-      "description": "AI-powered quiz generator — generate quizzes from any topic using a local Ollama model. No API keys required.",
+      "description": "AI-powered quiz generator — generate quizzes from any topic using Ollama, LM Studio, Groq, OpenRouter, or any OpenAI-compatible LLM.",
       "env": {
         "OLLAMA_HOST": "http://localhost:11434",
         "OLLAMA_MODEL": "qwen3:4b"

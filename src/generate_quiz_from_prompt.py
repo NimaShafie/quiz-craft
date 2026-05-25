@@ -41,6 +41,35 @@ def get_ollama_config():
     return host, model
 
 
+def get_backend_config() -> dict:
+    """
+    Return the active LLM backend config dict.
+
+    LLM_BACKEND=ollama (default) — Ollama native API.
+    LLM_BACKEND=openai           — any OpenAI-compatible /v1/chat/completions endpoint.
+
+    OpenAI-compatible env vars:
+        OPENAI_API_BASE   e.g. http://localhost:1234/v1       (LM Studio)
+                               http://localhost:8080/v1        (LocalAI)
+                               https://api.groq.com/openai/v1 (Groq)
+                               https://openrouter.ai/api/v1   (OpenRouter)
+                               https://api.together.xyz/v1    (Together.ai)
+                               https://api.openai.com/v1      (OpenAI)
+        OPENAI_API_KEY    API key (any string for local servers; required for cloud)
+        OPENAI_MODEL      e.g. llama-3.1-8b-instant, gpt-4o-mini, mistral-7b
+    """
+    backend = os.environ.get("LLM_BACKEND", "ollama").lower().strip()
+    if backend == "openai":
+        return {
+            "type": "openai",
+            "base_url": os.environ.get("OPENAI_API_BASE", "http://localhost:1234/v1").rstrip("/"),
+            "api_key": os.environ.get("OPENAI_API_KEY", "local"),
+            "model": os.environ.get("OPENAI_MODEL", "local-model"),
+        }
+    host, model = get_ollama_config()
+    return {"type": "ollama", "host": host, "model": model}
+
+
 _INJECTION_PATTERNS = re.compile(
     r"(ignore (previous|above|all) instructions?|"
     r"disregard|forget (everything|all)|"
@@ -165,6 +194,28 @@ def call_ollama(prompt, model, host, temperature):
     return resp.json().get("response", "")
 
 
+def call_openai_compatible(prompt: str, base_url: str, api_key: str, model: str, temperature: float) -> str:
+    """Call any OpenAI-compatible /v1/chat/completions endpoint."""
+    url = f"{base_url}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        "max_tokens": 16384,
+        "response_format": {"type": "json_object"},
+    }
+    resp = requests.post(url, json=payload, headers=headers, timeout=180)
+    if not resp.ok:
+        try:
+            err_body = resp.json()
+            err = (err_body.get("error") or {}).get("message") or resp.text
+        except Exception:
+            err = resp.text or f"HTTP {resp.status_code}"
+        raise requests.exceptions.HTTPError(err, response=resp)
+    return resp.json()["choices"][0]["message"]["content"]
+
+
 def extract_quiz_json(raw):
     # qwen3 and other reasoning models emit <think>...</think> blocks before the JSON
     raw = re.sub(r"<think>[\s\S]*?</think>", "", raw).strip()
@@ -241,18 +292,24 @@ def generate_quiz(number_of_questions=5, difficulty="Medium", user_prompt="", qu
     if not safe_prompt:
         return {"quiz": [], "error": "Empty or invalid prompt after sanitization."}
 
-    host, model = get_ollama_config()
+    cfg = get_backend_config()
     profile = DIFFICULTY_PROFILES.get(difficulty, DIFFICULTY_PROFILES["Medium"])
     prompt = build_prompt(number_of_questions, difficulty, safe_prompt, question_types)
 
     try:
-        raw = call_ollama(prompt, model, host, profile["temperature"])
+        if cfg["type"] == "openai":
+            raw = call_openai_compatible(
+                prompt, cfg["base_url"], cfg["api_key"], cfg["model"], profile["temperature"]
+            )
+        else:
+            raw = call_ollama(prompt, cfg["model"], cfg["host"], profile["temperature"])
     except requests.exceptions.ConnectionError:
-        return {"quiz": [], "error": f"Cannot connect to Ollama at {host}. Is it running?"}
+        target = cfg.get("base_url") or cfg.get("host", "")
+        return {"quiz": [], "error": f"Cannot connect to LLM backend at {target}. Is it running?"}
     except requests.exceptions.Timeout:
-        return {"quiz": [], "error": "Ollama request timed out after 180 seconds."}
+        return {"quiz": [], "error": "LLM request timed out after 180 seconds."}
     except Exception as e:
-        return {"quiz": [], "error": f"Ollama error: {str(e)}"}
+        return {"quiz": [], "error": f"LLM error: {str(e)}"}
 
     data = extract_quiz_json(raw)
     if not data:

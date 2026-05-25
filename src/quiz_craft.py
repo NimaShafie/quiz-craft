@@ -21,7 +21,7 @@ import requests
 import streamlit as st
 from fpdf import FPDF
 from dataclasses import dataclass, field
-from generate_quiz_from_prompt import _INJECTION_PATTERNS, get_ollama_config  # single source of truth
+from generate_quiz_from_prompt import _INJECTION_PATTERNS, get_ollama_config, get_backend_config  # single source of truth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mode + Config
@@ -331,23 +331,31 @@ else:
     st.html(_THEME_CSS)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Ollama health check
+# LLM health check
 # ─────────────────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=30)
-def _check_ollama_health() -> tuple:
+def _check_llm_health() -> tuple:
     """Returns (is_healthy: bool, detail: str). Cached for 30 s."""
+    cfg = get_backend_config()
     try:
-        host, model = get_ollama_config()
-        resp = requests.get(f"{host}/api/tags", timeout=3)
-        if not resp.ok:
-            return False, f"Ollama at {host} returned HTTP {resp.status_code}"
-        pulled = [m.get("name", "") for m in resp.json().get("models", [])]
-        if not any(model in name for name in pulled):
-            return False, f"Model `{model}` not pulled. Run: `ollama pull {model}`"
-        return True, ""
+        if cfg["type"] == "openai":
+            headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+            resp = requests.get(f"{cfg['base_url']}/models", headers=headers, timeout=3)
+            if not resp.ok:
+                return False, f"LLM backend at {cfg['base_url']} returned HTTP {resp.status_code}"
+            return True, ""
+        else:
+            host, model = cfg["host"], cfg["model"]
+            resp = requests.get(f"{host}/api/tags", timeout=3)
+            if not resp.ok:
+                return False, f"Ollama at {host} returned HTTP {resp.status_code}"
+            pulled = [m.get("name", "") for m in resp.json().get("models", [])]
+            if not any(model in name for name in pulled):
+                return False, f"Model `{model}` not pulled. Run: `ollama pull {model}`"
+            return True, ""
     except requests.exceptions.ConnectionError:
-        host, _ = get_ollama_config()
-        return False, f"Cannot reach Ollama at {host}. Is it running?"
+        target = cfg.get("base_url") or cfg.get("host", "")
+        return False, f"Cannot reach LLM backend at {target}. Is it running?"
     except Exception as e:
         return False, str(e)
 
@@ -464,7 +472,7 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
         return None
     match = re.search(r"(\{[\s\S]*\})", result.stdout)
     if not match:
-        st.session_state.last_error = "Model returned no parseable JSON. Check Ollama is running and a model is pulled."
+        st.session_state.last_error = "Model returned no parseable JSON. Check your LLM backend is running and the model is available."
         return None
     try:
         data = json.loads(match.group(1))
@@ -530,22 +538,24 @@ def format_quiz_as_text(quiz_data: dict, topic: str = "") -> str:
 
 def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     import datetime
+    from fpdf.enums import XPos, YPos
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
+    w = pdf.epw
 
     # Header bar
     pdf.set_fill_color(30, 40, 55)
     pdf.rect(0, 0, 210, 28, "F")
     pdf.set_text_color(240, 200, 170)
-    pdf.set_font("Arial", "B", 18)
+    pdf.set_font("Helvetica", "B", 18)
     pdf.set_xy(10, 6)
-    pdf.cell(0, 10, "QuizCraft", ln=False)
-    pdf.set_font("Arial", "", 9)
+    pdf.cell(w, 10, "QuizCraft", new_x=XPos.LMARGIN, new_y=YPos.TOP)
+    pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(160, 180, 190)
     pdf.set_xy(10, 17)
     label = f"Topic: {topic}  |  " if topic else ""
-    pdf.cell(0, 6, f"{label}Generated: {datetime.datetime.now().strftime('%B %d, %Y')}", ln=True)
+    pdf.cell(w, 6, f"{label}Generated: {datetime.datetime.now().strftime('%B %d, %Y')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_text_color(30, 40, 55)
     pdf.ln(8)
@@ -555,22 +565,22 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
         qtype = q.get("type", "").strip().lower()
 
         # Question number + text
-        pdf.set_font("Arial", "B", 11)
+        pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(40, 55, 70)
         safe_q = f"{i}.  {q['question']}".encode("latin-1", errors="replace").decode("latin-1")
-        pdf.multi_cell(0, 7, safe_q)
-        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(w, 7, safe_q, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(60, 75, 90)
 
         if qtype == "multiple choice":
             for idx, opt in enumerate(q.get("options", []), 1):
                 safe_opt = f"     {chr(96+idx)})  {opt}".encode("latin-1", errors="replace").decode("latin-1")
-                pdf.multi_cell(0, 6, safe_opt)
+                pdf.multi_cell(w, 6, safe_opt, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         elif qtype == "true/false":
-            pdf.cell(0, 6, "     a)  True", ln=True)
-            pdf.cell(0, 6, "     b)  False", ln=True)
+            pdf.cell(w, 6, "     a)  True", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+            pdf.cell(w, 6, "     b)  False", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         elif qtype == "fill in the blanks":
-            pdf.cell(0, 6, "     Answer: ___________________________", ln=True)
+            pdf.cell(w, 6, "     Answer: ___________________________", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(3)
 
     # Answer key section
@@ -578,12 +588,12 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     pdf.set_fill_color(245, 240, 235)
     pdf.set_draw_color(200, 160, 130)
     pdf.set_line_width(0.4)
-    pdf.set_font("Arial", "B", 12)
+    pdf.set_font("Helvetica", "B", 12)
     pdf.set_text_color(150, 80, 50)
-    pdf.cell(0, 8, "  Answer Key", ln=True, fill=True, border="B")
+    pdf.cell(w, 8, "  Answer Key", new_x=XPos.LMARGIN, new_y=YPos.NEXT, fill=True, border="B")
     pdf.ln(2)
 
-    pdf.set_font("Arial", "", 10)
+    pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(40, 55, 70)
     for i, q in enumerate(questions, 1):
         answer = q.get("answer", "")
@@ -601,13 +611,13 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
         else:
             ans_text = f"  {i}.  {answer}"
         safe_ans = ans_text.encode("latin-1", errors="replace").decode("latin-1")
-        pdf.multi_cell(0, 6, safe_ans)
+        pdf.multi_cell(w, 6, safe_ans, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Footer
     pdf.ln(6)
-    pdf.set_font("Arial", "I", 8)
+    pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(140, 160, 170)
-    pdf.cell(0, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft", ln=True, align="C")
+    pdf.cell(w, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
 
     return bytes(pdf.output())
 
@@ -617,26 +627,60 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
 st.title("QuizCraft")
 
 if HOSTED_MODE:
-    st.caption("AI-powered quiz generator — free to use, powered by Ollama")
+    st.caption("AI-powered quiz generator — free to use, no account required")
     used, total = get_remaining_quota()
     remaining = total - used
     color = "#4caf82" if remaining >= 3 else ("#f0a050" if remaining >= 1 else "#e05050")
     st.html(f'<div class="quota-badge" style="color:{color};">{remaining}/{total} generations remaining this hour</div>')
 else:
-    st.caption("AI-powered quiz generator — self-hosted with Ollama")
-    _ollama_ok, _ollama_detail = _check_ollama_health()
-    if not _ollama_ok:
+    st.caption("AI-powered quiz generator — use any local or cloud LLM")
+    _llm_ok, _llm_detail = _check_llm_health()
+    if not _llm_ok:
+        _cfg = get_backend_config()
         with st.expander("Setup — first time?", expanded=True):
-            if _ollama_detail:
-                st.warning(_ollama_detail)
-            st.markdown("""
-**Requirements:** [Ollama](https://ollama.com) must be running on your machine.
+            if _llm_detail:
+                st.warning(_llm_detail)
+            if _cfg["type"] == "openai":
+                st.markdown(f"""
+**OpenAI-compatible backend** configured at `{_cfg['base_url']}`
+
+Make sure your LLM server is running and model `{_cfg['model']}` is available.
+
+**Popular options (set `LLM_BACKEND=openai`):**
+| Service | OPENAI_API_BASE | Notes |
+|---|---|---|
+| [LM Studio](https://lmstudio.ai) | `http://localhost:1234/v1` | Local, free |
+| [LocalAI](https://localai.io) | `http://localhost:8080/v1` | Local/Docker |
+| [Groq](https://groq.com) | `https://api.groq.com/openai/v1` | Cloud, fast free tier |
+| [OpenRouter](https://openrouter.ai) | `https://openrouter.ai/api/v1` | Cloud, 100+ models |
+| [Together.ai](https://together.ai) | `https://api.together.xyz/v1` | Cloud |
+| [OpenAI](https://platform.openai.com) | `https://api.openai.com/v1` | Cloud |
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull gemma3:4b
+export LLM_BACKEND=openai
+export OPENAI_API_BASE=https://api.groq.com/openai/v1
+export OPENAI_API_KEY=your_key_here
+export OPENAI_MODEL=llama-3.1-8b-instant
 streamlit run src/quiz_craft.py
 ```
-Edit `config.ini` to change the model or host.
+""")
+            else:
+                st.markdown("""
+**Option A — Ollama (local, recommended):**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull qwen3:4b
+streamlit run src/quiz_craft.py
+```
+Edit `config.ini` or set `OLLAMA_HOST` / `OLLAMA_MODEL` to change the model or host.
+
+**Option B — Any OpenAI-compatible LLM** (LM Studio, Groq, OpenRouter, Together.ai…):
+```bash
+export LLM_BACKEND=openai
+export OPENAI_API_BASE=https://api.groq.com/openai/v1
+export OPENAI_API_KEY=your_key_here
+export OPENAI_MODEL=llama-3.1-8b-instant
+streamlit run src/quiz_craft.py
+```
 """)
 
 st.markdown("---")
@@ -723,7 +767,7 @@ if submit:
     with st.status("Generating quiz...", expanded=True) as status:
         st.write(f"Generating a **{difficulty}** {n_questions}-question quiz on your topic...")
         st.write("This takes 15-30 seconds on CPU — please wait...")
-        st.progress(0.3, text="Sending request to Ollama...")
+        st.progress(0.3, text="Sending request to AI...")
         quiz_data = run_generate_quiz(n_questions, difficulty, safe_prompt, question_types)
         if quiz_data:
             if HOSTED_MODE:
@@ -864,11 +908,21 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
 # ─────────────────────────────────────────────────────────────────────────────
 # Footer
 # ─────────────────────────────────────────────────────────────────────────────
-st.html('''<div class="qc-footer">
+_footer_cfg = get_backend_config()
+if _footer_cfg["type"] == "openai":
+    _footer_backend = f'<a href="{_footer_cfg["base_url"]}">{_footer_cfg["base_url"].split("//")[-1].split("/")[0]}</a>'
+    _footer_model = _footer_cfg["model"]
+    _footer_model_url = _footer_cfg["base_url"]
+else:
+    _footer_backend = '<a href="https://ollama.com">Ollama</a>'
+    _footer_model = _footer_cfg.get("model", "")
+    _footer_model_url = f'https://ollama.com/library/{_footer_model.split(":")[0]}'
+
+st.html(f'''<div class="qc-footer">
     <strong style="color:#4a7080;letter-spacing:1px;">QUIZCRAFT</strong><br>
     Built by <a href="https://github.com/NimaShafie">Nima Shafie</a>
-    &nbsp;·&nbsp; Powered by <a href="https://ollama.com">Ollama</a>
+    &nbsp;·&nbsp; Powered by {_footer_backend}
     &nbsp;·&nbsp; Built with <a href="https://streamlit.io">Streamlit</a>
-    &nbsp;·&nbsp; Model: <a href="https://ollama.com/library/gemma3">gemma3:4b</a><br>
-    <span style="color:#1e3040;">Licensed under CC BY-NC-ND 4.0 &nbsp;·&nbsp; Not for commercial use</span>
+    &nbsp;·&nbsp; Model: <a href="{_footer_model_url}">{_footer_model}</a>
+    &nbsp;·&nbsp; <a href="http://localhost:8000/docs">API</a><br>
 </div>''')

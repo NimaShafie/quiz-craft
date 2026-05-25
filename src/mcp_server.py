@@ -31,7 +31,7 @@ import json
 import requests
 from mcp.server.fastmcp import FastMCP
 
-from generate_quiz_from_prompt import generate_quiz, get_ollama_config, DIFFICULTY_PROFILES
+from generate_quiz_from_prompt import generate_quiz, get_backend_config, DIFFICULTY_PROFILES
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Server
@@ -39,8 +39,8 @@ from generate_quiz_from_prompt import generate_quiz, get_ollama_config, DIFFICUL
 mcp = FastMCP(
     "QuizCraft",
     description=(
-        "Generate AI-powered quizzes from any topic or text using a local Ollama model. "
-        "No API keys required — all inference runs on your machine. "
+        "Generate AI-powered quizzes from any topic or text. "
+        "Works with Ollama (local), LM Studio, Groq, OpenRouter, Together.ai, or any OpenAI-compatible LLM. "
         "Source: https://github.com/NimaShafie/quiz-craft"
     ),
 )
@@ -95,43 +95,66 @@ def generate_quiz_tool(
 
 
 @mcp.tool()
-def check_ollama_health() -> str:
+def check_llm_health() -> str:
     """
-    Check whether Ollama is running and the configured model is available.
+    Check whether the configured LLM backend is reachable and the model is available.
 
     Returns:
         JSON string with:
           - status: 'ok' | 'model_not_pulled' | 'error'
-          - ollama_host (str)
+          - backend: 'ollama' | 'openai'
+          - backend_url (str)
           - model (str): configured model name
           - model_available (bool)
-          - available_models (list[str]): all pulled models
+          - available_models (list[str]): models found on the server (Ollama only)
     """
-    host, model = get_ollama_config()
+    cfg = get_backend_config()
     try:
-        resp = requests.get(f"{host}/api/tags", timeout=3)
-        if not resp.ok:
+        if cfg["type"] == "openai":
+            headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+            resp = requests.get(f"{cfg['base_url']}/models", headers=headers, timeout=3)
+            if not resp.ok:
+                return json.dumps({
+                    "status": "error",
+                    "backend": "openai",
+                    "backend_url": cfg["base_url"],
+                    "detail": f"HTTP {resp.status_code}",
+                })
             return json.dumps({
-                "status": "error",
-                "ollama_host": host,
-                "detail": f"HTTP {resp.status_code}",
-            })
-        pulled = [m.get("name", "") for m in resp.json().get("models", [])]
-        model_available = any(model in name for name in pulled)
-        return json.dumps({
-            "status": "ok" if model_available else "model_not_pulled",
-            "ollama_host": host,
-            "model": model,
-            "model_available": model_available,
-            "available_models": pulled,
-            "hint": "" if model_available else f"Run: ollama pull {model}",
-        }, indent=2)
+                "status": "ok",
+                "backend": "openai",
+                "backend_url": cfg["base_url"],
+                "model": cfg["model"],
+                "model_available": True,
+            }, indent=2)
+        else:
+            host, model = cfg["host"], cfg["model"]
+            resp = requests.get(f"{host}/api/tags", timeout=3)
+            if not resp.ok:
+                return json.dumps({
+                    "status": "error",
+                    "backend": "ollama",
+                    "backend_url": host,
+                    "detail": f"HTTP {resp.status_code}",
+                })
+            pulled = [m.get("name", "") for m in resp.json().get("models", [])]
+            model_available = any(model in name for name in pulled)
+            return json.dumps({
+                "status": "ok" if model_available else "model_not_pulled",
+                "backend": "ollama",
+                "backend_url": host,
+                "model": model,
+                "model_available": model_available,
+                "available_models": pulled,
+                "hint": "" if model_available else f"Run: ollama pull {model}",
+            }, indent=2)
     except Exception as e:
+        target = cfg.get("base_url") or cfg.get("host", "")
         return json.dumps({
             "status": "error",
-            "ollama_host": host,
+            "backend": cfg["type"],
+            "backend_url": target,
             "detail": str(e),
-            "hint": "Make sure Ollama is running: ollama serve",
         })
 
 

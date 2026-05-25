@@ -4,7 +4,7 @@
 
 **Author:** Nima Shafie  
 **Live:** [quizcraft.shafie.org](https://quizcraft.shafie.org)  
-**License:** [CC BY-NC-ND 4.0](LICENSE) — free for personal/academic use, not for commercial use
+**License:** [CC BY-NC-ND 4.0](LICENSE)
 
 ---
 
@@ -327,5 +327,4 @@ docker compose logs ollama --tail=30
 
 ## License
 
-[CC BY-NC-ND 4.0](LICENSE) — free for personal and academic use.  
-Commercial use is not permitted. Attribution required.
+[CC BY-NC-ND 4.0](LICENSE)

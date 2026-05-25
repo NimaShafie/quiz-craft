@@ -609,7 +609,7 @@ def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     pdf.set_text_color(140, 160, 170)
     pdf.cell(0, 5, "Created with QuizCraft  |  github.com/NimaShafie/quiz-craft", ln=True, align="C")
 
-    return pdf.output(dest="S").encode("latin-1")
+    return bytes(pdf.output())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UI — Header

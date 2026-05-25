@@ -1,10 +1,15 @@
 # QuizCraft — Python dependencies
-# Tested with Python 3.11 / 3.12
+# Tested with Python 3.11 / 3.12 / 3.13
+#
+# Install only what you need:
+#   Core only (library use):  pip install -r requirements.txt
+#   Streamlit UI:             pip install "quizcraft[ui]"     (or add streamlit below)
+#   REST API:                 pip install "quizcraft[api]"
+#   MCP server:               pip install "quizcraft[mcp]"
+#   Everything:               pip install "quizcraft[all]"
 
-# Web UI
-streamlit>=1.57.0
-
-# LLM backend (Ollama direct HTTP — no llama-index needed)
+# ── Core (required for quiz generation) ──────────────────────────────────────
+# LLM backend — Ollama direct HTTP, no llama-index/torch/transformers needed
 requests>=2.34.2
 
 # PDF generation (quiz export)
@@ -13,9 +18,19 @@ fpdf2>=2.7.9
 # PDF reading (file upload feature)
 pypdf>=6.12.1
 
-# Config parsing (stdlib, listed for clarity)
-# configparser — stdlib
+# ── Web UI (streamlit run src/quiz_craft.py) ─────────────────────────────────
+streamlit>=1.57.0
 
-# NOTE: llama-index, torch, transformers etc. from the original requirements
-# are NOT needed. They added ~4GB of install weight for features that are
-# now handled directly via the Ollama HTTP API.
+# ── REST API (python src/api.py  or  uvicorn api:app --app-dir src) ──────────
+# pip install fastapi "uvicorn[standard]"
+# fastapi>=0.115.0
+# uvicorn[standard]>=0.30.0
+
+# ── MCP Server (python src/mcp_server.py) ────────────────────────────────────
+# pip install mcp
+# mcp>=1.0.0
+
+# ── Dev / testing ─────────────────────────────────────────────────────────────
+# pip install pytest httpx
+# pytest>=8.0.0
+# httpx>=0.27.0   # FastAPI test client

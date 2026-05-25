@@ -152,7 +152,7 @@ def call_ollama(prompt, model, host, temperature):
         "think": False,
         "options": {
             "temperature": temperature,
-            "num_predict": 4096,
+            "num_predict": 16384,
         },
     }
     resp = requests.post(url, json=payload, timeout=180)

@@ -1,0 +1,21 @@
+{
+  "_comment": "QuizCraft MCP Server — drop this block into your Claude Desktop or Claude Code MCP config.",
+  "_docs": "https://github.com/NimaShafie/quiz-craft",
+  "_prerequisites": [
+    "pip install mcp>=1.0.0",
+    "ollama pull qwen3:4b",
+    "ollama serve"
+  ],
+  "mcpServers": {
+    "quizcraft": {
+      "command": "python",
+      "args": ["src/mcp_server.py"],
+      "cwd": "/path/to/quiz-craft",
+      "description": "AI-powered quiz generator — generate quizzes from any topic using a local Ollama model. No API keys required.",
+      "env": {
+        "OLLAMA_HOST": "http://localhost:11434",
+        "OLLAMA_MODEL": "qwen3:4b"
+      }
+    }
+  }
+}

@@ -25,6 +25,9 @@ INDEX/
 .vscode/settings.json
 .idea/
 
+# Claude Code
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db

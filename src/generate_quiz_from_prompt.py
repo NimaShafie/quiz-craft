@@ -16,7 +16,40 @@ import json
 import sys
 import re
 import os
+import time
+import logging
+import ipaddress
 import requests
+from urllib.parse import urlparse
+
+_logger = logging.getLogger("quizcraft.core")
+
+# Blocked cloud metadata endpoints (SSRF guard).
+_BLOCKED_HOSTS = frozenset(["169.254.169.254", "metadata.google.internal"])
+
+
+def _validate_backend_url(url: str) -> None:
+    """Raise ValueError if the URL targets a known cloud metadata endpoint."""
+    if not url:
+        return
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if host in _BLOCKED_HOSTS:
+        raise ValueError(
+            f"LLM backend URL targets a blocked host ({host}). "
+            "This host is a cloud metadata endpoint and cannot be used as an LLM backend."
+        )
+    try:
+        addr = ipaddress.ip_address(host)
+        if addr.is_link_local:
+            raise ValueError(
+                f"LLM backend URL targets a link-local address ({host}). "
+                "Set ALLOW_PRIVATE_LLM_HOST=true to override."
+            )
+    except ValueError as exc:
+        # Re-raise only if it's our explicit block, not the ip_address() parse failure.
+        if "blocked" in str(exc) or "link-local" in str(exc):
+            raise
 
 
 def get_ollama_config():
@@ -45,8 +78,9 @@ def get_backend_config() -> dict:
     """
     Return the active LLM backend config dict.
 
-    LLM_BACKEND=ollama (default) — Ollama native API.
-    LLM_BACKEND=openai           — any OpenAI-compatible /v1/chat/completions endpoint.
+    LLM_BACKEND=ollama     (default) — Ollama native API.
+    LLM_BACKEND=openai               — any OpenAI-compatible /v1/chat/completions endpoint.
+    LLM_BACKEND=anthropic            — Anthropic Claude API (requires ANTHROPIC_API_KEY).
 
     OpenAI-compatible env vars:
         OPENAI_API_BASE   e.g. http://localhost:1234/v1       (LM Studio)
@@ -57,17 +91,101 @@ def get_backend_config() -> dict:
                                https://api.openai.com/v1      (OpenAI)
         OPENAI_API_KEY    API key (any string for local servers; required for cloud)
         OPENAI_MODEL      e.g. llama-3.1-8b-instant, gpt-4o-mini, mistral-7b
+
+    Anthropic env vars:
+        ANTHROPIC_API_KEY  Your Anthropic API key (sk-ant-...)
+        ANTHROPIC_MODEL    e.g. claude-haiku-4-5 (default), claude-sonnet-4-6
     """
     backend = os.environ.get("LLM_BACKEND", "ollama").lower().strip()
     if backend == "openai":
+        base_url = os.environ.get("OPENAI_API_BASE", "http://localhost:1234/v1").rstrip("/")
+        _validate_backend_url(base_url)
         return {
             "type": "openai",
-            "base_url": os.environ.get("OPENAI_API_BASE", "http://localhost:1234/v1").rstrip("/"),
+            "base_url": base_url,
             "api_key": os.environ.get("OPENAI_API_KEY", "local"),
             "model": os.environ.get("OPENAI_MODEL", "local-model"),
         }
+    if backend == "anthropic":
+        return {
+            "type": "anthropic",
+            "api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+            "model": os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5"),
+        }
     host, model = get_ollama_config()
+    _validate_backend_url(host)
     return {"type": "ollama", "host": host, "model": model}
+
+
+def check_llm_health(cfg: dict | None = None) -> dict:
+    """
+    Check LLM backend health. Returns a standardised dict:
+      status, backend, backend_url, model, model_available, available_models, detail.
+
+    Used by api.py, quiz_craft.py, and mcp_server.py — single source of truth.
+    """
+    if cfg is None:
+        cfg = get_backend_config()
+    try:
+        if cfg["type"] == "anthropic":
+            api_key = cfg.get("api_key", "")
+            if not api_key:
+                return {
+                    "status": "error", "backend": "anthropic", "backend_url": "https://api.anthropic.com",
+                    "model": cfg.get("model", ""), "model_available": False,
+                    "available_models": [], "detail": "ANTHROPIC_API_KEY is not set.",
+                }
+            return {
+                "status": "ok", "backend": "anthropic", "backend_url": "https://api.anthropic.com",
+                "model": cfg.get("model", ""), "model_available": True,
+                "available_models": [], "detail": "",
+            }
+        if cfg["type"] == "openai":
+            headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+            resp = requests.get(f"{cfg['base_url']}/models", headers=headers, timeout=3)
+            if not resp.ok:
+                return {
+                    "status": "degraded", "backend": "openai", "backend_url": cfg["base_url"],
+                    "model": cfg.get("model", ""), "model_available": False,
+                    "available_models": [], "detail": f"Backend returned HTTP {resp.status_code}",
+                }
+            return {
+                "status": "ok", "backend": "openai", "backend_url": cfg["base_url"],
+                "model": cfg.get("model", ""), "model_available": True,
+                "available_models": [], "detail": "",
+            }
+        # Ollama
+        host, model = cfg["host"], cfg["model"]
+        resp = requests.get(f"{host}/api/tags", timeout=3)
+        if not resp.ok:
+            return {
+                "status": "degraded", "backend": "ollama", "backend_url": host,
+                "model": model, "model_available": False,
+                "available_models": [], "detail": f"Ollama returned HTTP {resp.status_code}",
+            }
+        pulled = [m.get("name", "") for m in resp.json().get("models", [])]
+        model_available = any(model in name for name in pulled)
+        return {
+            "status": "ok" if model_available else "degraded",
+            "backend": "ollama", "backend_url": host,
+            "model": model, "model_available": model_available,
+            "available_models": pulled,
+            "detail": "" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
+        }
+    except requests.exceptions.ConnectionError:
+        target = cfg.get("base_url") or cfg.get("host", "https://api.anthropic.com")
+        return {
+            "status": "error", "backend": cfg.get("type", "unknown"), "backend_url": target,
+            "model": cfg.get("model", ""), "model_available": False,
+            "available_models": [], "detail": f"Cannot reach LLM backend at {target}. Is it running?",
+        }
+    except Exception as e:
+        target = cfg.get("base_url") or cfg.get("host", "")
+        return {
+            "status": "error", "backend": cfg.get("type", "unknown"), "backend_url": target,
+            "model": cfg.get("model", ""), "model_available": False,
+            "available_models": [], "detail": str(e),
+        }
 
 
 _INJECTION_PATTERNS = re.compile(
@@ -216,6 +334,25 @@ def call_openai_compatible(prompt: str, base_url: str, api_key: str, model: str,
     return resp.json()["choices"][0]["message"]["content"]
 
 
+def call_anthropic(prompt: str, api_key: str, model: str, temperature: float) -> str:
+    """Call the Anthropic Messages API."""
+    try:
+        import anthropic
+    except ImportError:
+        raise ImportError(
+            "The 'anthropic' package is required for LLM_BACKEND=anthropic. "
+            "Install it: pip install anthropic"
+        )
+    client = anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model=model,
+        max_tokens=16384,
+        temperature=temperature,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text
+
+
 def extract_quiz_json(raw):
     # qwen3 and other reasoning models emit <think>...</think> blocks before the JSON
     raw = re.sub(r"<think>[\s\S]*?</think>", "", raw).strip()
@@ -284,7 +421,13 @@ def normalize_question(q):
     }
 
 
-def generate_quiz(number_of_questions=5, difficulty="Medium", user_prompt="", question_types=None):
+def generate_quiz(
+    number_of_questions=5,
+    difficulty="Medium",
+    user_prompt="",
+    question_types=None,
+    max_retries: int = 2,
+):
     if question_types is None:
         question_types = ["Multiple Choice"]
 
@@ -296,24 +439,57 @@ def generate_quiz(number_of_questions=5, difficulty="Medium", user_prompt="", qu
     profile = DIFFICULTY_PROFILES.get(difficulty, DIFFICULTY_PROFILES["Medium"])
     prompt = build_prompt(number_of_questions, difficulty, safe_prompt, question_types)
 
-    try:
-        if cfg["type"] == "openai":
-            raw = call_openai_compatible(
-                prompt, cfg["base_url"], cfg["api_key"], cfg["model"], profile["temperature"]
-            )
-        else:
-            raw = call_ollama(prompt, cfg["model"], cfg["host"], profile["temperature"])
-    except requests.exceptions.ConnectionError:
-        target = cfg.get("base_url") or cfg.get("host", "")
-        return {"quiz": [], "error": f"Cannot connect to LLM backend at {target}. Is it running?"}
-    except requests.exceptions.Timeout:
-        return {"quiz": [], "error": "LLM request timed out after 180 seconds."}
-    except Exception as e:
-        return {"quiz": [], "error": f"LLM error: {str(e)}"}
+    # Emit progress markers to stderr when called as a subprocess by Streamlit.
+    _progress = os.environ.get("QUIZCRAFT_PROGRESS", "").lower() in ("1", "true", "yes")
+    if _progress:
+        sys.stderr.write("PROGRESS:connecting\n")
+        sys.stderr.flush()
 
-    data = extract_quiz_json(raw)
+    raw = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            if cfg["type"] == "openai":
+                raw = call_openai_compatible(
+                    prompt, cfg["base_url"], cfg["api_key"], cfg["model"], profile["temperature"]
+                )
+            elif cfg["type"] == "anthropic":
+                raw = call_anthropic(prompt, cfg["api_key"], cfg["model"], profile["temperature"])
+            else:
+                raw = call_ollama(prompt, cfg["model"], cfg["host"], profile["temperature"])
+            break  # success
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            if attempt < max_retries:
+                wait = 2 ** attempt  # 2s, 4s
+                _logger.warning("LLM call failed (attempt %d/%d), retrying in %ds: %s", attempt, max_retries, wait, e)
+                time.sleep(wait)
+                continue
+            target = cfg.get("base_url") or cfg.get("host", "")
+            return {
+                "quiz": [],
+                "error": (
+                    f"Cannot connect to LLM backend at {target} after {max_retries} attempts. "
+                    "Verify the backend is running and reachable."
+                ),
+            }
+        except Exception as e:
+            _logger.exception("Unexpected LLM error")
+            return {"quiz": [], "error": f"LLM error: {str(e)}"}
+
+    if _progress:
+        sys.stderr.write("PROGRESS:parsing\n")
+        sys.stderr.flush()
+
+    data = extract_quiz_json(raw or "")
     if not data:
-        return {"quiz": [], "error": "Model did not return valid JSON."}
+        snippet = (raw or "")[:120].replace("\n", " ")
+        return {
+            "quiz": [],
+            "error": (
+                f"Model returned unparseable output (first 120 chars: {snippet!r}). "
+                "Try: (1) a different model, (2) reducing question count, "
+                "or (3) checking the model is fully loaded."
+            ),
+        }
 
     questions = [normalize_question(q) for q in data.get("quiz", [])]
     questions = [q for q in questions if q is not None]

@@ -1,12 +1,38 @@
 name: Tests
+
 on: [push, pull_request]
+
 jobs:
-  test:
+  lint:
+    name: Lint & static analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest requests pypdf fpdf2
-      - run: python -m pytest tests/ -v
+      - run: pip install ruff mypy bandit
+      - run: ruff check src/ tests/
+      - run: mypy src/ --ignore-missing-imports --no-strict-optional
+      - run: bandit -r src/ -ll  # medium+ severity only
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov httpx \
+            requests pypdf fpdf2 \
+            fastapi uvicorn pydantic \
+            starlette
+      - name: Run tests with coverage
+        run: python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=60

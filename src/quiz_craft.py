@@ -19,6 +19,7 @@ import logging
 import traceback
 import requests
 import streamlit as st
+from logging.handlers import RotatingFileHandler
 from fpdf import FPDF
 from dataclasses import dataclass, field
 from generate_quiz_from_prompt import _INJECTION_PATTERNS, get_ollama_config, get_backend_config  # single source of truth
@@ -100,12 +101,16 @@ GEN_SCRIPT = os.path.join(SCRIPT_DIR, "generate_quiz_from_prompt.py")
 # ─────────────────────────────────────────────────────────────────────────────
 _LOG_DIR = os.path.join(SCRIPT_DIR, "..", "logs")
 os.makedirs(_LOG_DIR, exist_ok=True)
-logging.basicConfig(
-    filename=os.path.join(_LOG_DIR, "quizcraft.log"),
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+_log_handler = RotatingFileHandler(
+    os.path.join(_LOG_DIR, "quizcraft.log"),
+    maxBytes=10 * 1024 * 1024,  # 10 MB per file
+    backupCount=5,
 )
+_log_handler.setFormatter(logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+))
+logging.basicConfig(handlers=[_log_handler], level=logging.INFO)
 _logger = logging.getLogger("quizcraft")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -406,15 +411,23 @@ class _IPRecord:
     last_request: float = 0.0
 
 _ip_store: dict = {}
+_MAX_IP_STORE_SIZE = int(os.environ.get("RATE_LIMIT_MAX_IPS", "10000"))
+
+# Only trust X-Forwarded-For when explicitly behind a known reverse proxy.
+_TRUSTED_PROXY = os.environ.get("TRUSTED_PROXY", "").lower() in ("true", "1", "yes")
 
 
 def _get_client_ip() -> str:
     try:
-        headers = st.context.headers
-        for h in ("X-Forwarded-For", "X-Real-Ip"):
-            val = headers.get(h, "")
-            if val:
-                return hashlib.sha256(val.split(",")[0].strip().encode()).hexdigest()[:16]
+        if HOSTED_MODE and _TRUSTED_PROXY:
+            headers = st.context.headers
+            for h in ("X-Forwarded-For", "X-Real-Ip"):
+                val = headers.get(h, "").strip()
+                if val:
+                    # Take the LAST IP (added by trusted proxy), not the first (user-controlled).
+                    ip = val.split(",")[-1].strip()
+                    if ip:
+                        return hashlib.sha256(ip.encode()).hexdigest()[:16]
     except Exception:
         pass
     try:
@@ -426,6 +439,14 @@ def _get_client_ip() -> str:
 def check_rate_limit() -> tuple:
     if not HOSTED_MODE: return True, ""
     ip = _get_client_ip(); now = time.time()
+    # Evict fully-expired entries when store grows large (prevent unbounded memory growth).
+    if len(_ip_store) > _MAX_IP_STORE_SIZE:
+        stale = [
+            k for k, v in _ip_store.items()
+            if not any(now - t < RATE_LIMIT_WINDOW_SEC for t in v.timestamps)
+        ]
+        for k in stale:
+            del _ip_store[k]
     if ip not in _ip_store: _ip_store[ip] = _IPRecord()
     record = _ip_store[ip]
     elapsed = now - record.last_request
@@ -478,14 +499,24 @@ for key, default in defaults.items():
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+_MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "10")) * 1024 * 1024  # default 10 MB
+
+
 def extract_text_from_file(uploaded_file) -> str:
+    raw = uploaded_file.read()
+    if len(raw) > _MAX_UPLOAD_BYTES:
+        st.error(
+            f"File is too large ({len(raw) / (1024 * 1024):.1f} MB). "
+            f"Maximum allowed size is {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+        )
+        return ""
     if uploaded_file.type == "text/plain":
-        return uploaded_file.read().decode("utf-8", errors="replace")[:MAX_PROMPT_CHARS]
+        return raw.decode("utf-8", errors="replace")[:MAX_PROMPT_CHARS]
     elif uploaded_file.type == "application/pdf":
         try:
             from pypdf import PdfReader
             import io
-            reader = PdfReader(io.BytesIO(uploaded_file.read()))
+            reader = PdfReader(io.BytesIO(raw))
             return " ".join(page.extract_text() or "" for page in reader.pages)[:MAX_PROMPT_CHARS]
         except Exception as e:
             st.error(f"Could not read PDF: {e}")
@@ -510,7 +541,12 @@ def run_generate_quiz(n_questions, difficulty, user_prompt, question_types) -> d
         return None
     match = re.search(r"(\{[\s\S]*\})", result.stdout)
     if not match:
-        st.session_state.last_error = "Model returned no parseable JSON. Check your LLM backend is running and the model is available."
+        backend_name = _backend_display_name(_backend_cfg)
+        st.session_state.last_error = (
+            f"Model returned no parseable JSON (backend: {backend_name}). "
+            "Try: (1) fewer questions, (2) a larger or different model, "
+            "or (3) verify the backend is running and the model is fully loaded."
+        )
         return None
     try:
         data = json.loads(match.group(1))
@@ -871,8 +907,19 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
     col_pdf, col_txt, col_mode = st.columns([1, 1, 1])
     with col_pdf:
         if pdf_bytes:
-            st.download_button("Download PDF", data=pdf_bytes, file_name="quiz.pdf",
-                               mime="application/pdf", use_container_width=True)
+            # Use a data URI so the browser never makes an HTTP request for the
+            # file — this avoids Brave/Chrome "insecure download" blocks that
+            # trigger when downloading binary files over plain HTTP.
+            pdf_b64 = _b64.b64encode(pdf_bytes).decode()
+            st.markdown(
+                f'<a href="data:application/pdf;base64,{pdf_b64}" download="quiz.pdf"'
+                f' style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:100%;padding:0.45rem 0.75rem;background:transparent;color:inherit;'
+                f'border:1px solid rgba(250,250,250,0.2);border-radius:0.5rem;'
+                f'text-decoration:none;font-size:0.875rem;font-weight:400;'
+                f'box-sizing:border-box;">Download PDF</a>',
+                unsafe_allow_html=True,
+            )
         else:
             st.warning("PDF unavailable. Use TXT.")
     with col_txt:

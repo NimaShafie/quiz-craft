@@ -1,3 +1,5 @@
 [server]
 enableCORS = false
-enableXsrfProtection = false
+# XSRF protection is enabled. If you run behind a reverse proxy and see CSRF errors,
+# ensure your proxy forwards the Host and Origin headers correctly, then set this to false.
+enableXsrfProtection = true

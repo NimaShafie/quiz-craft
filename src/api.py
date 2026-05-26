@@ -8,21 +8,55 @@ Run (from repo root):
 
 Interactive docs: http://localhost:8000/docs
 OpenAPI JSON:     http://localhost:8000/openapi.json
+
+Security env vars (all optional — safe defaults for personal/local use):
+    API_KEY          — when set, all endpoints require `X-API-Key: <value>` header
+    CORS_ORIGINS     — comma-separated allowed origins, or "*" (default) for open CORS
+    HOSTED_MODE      — "true" enables public-facing defaults (rate limiting at 5/hour)
+    API_RATE_LIMIT   — slowapi limit string e.g. "10/hour"; overrides HOSTED_MODE default
+    UVICORN_RELOAD   — "true" to enable auto-reload (default: false)
+    API_PORT         — port to bind (default: 8000)
 """
 
 import sys
 import os
+import logging
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import requests as _requests
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from generate_quiz_from_prompt import generate_quiz, get_backend_config, DIFFICULTY_PROFILES
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────────────────────────────────────────
+_logger = logging.getLogger("quizcraft.api")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Config from environment
+# ─────────────────────────────────────────────────────────────────────────────
+_cors_raw = os.environ.get("CORS_ORIGINS", "*")
+CORS_ORIGINS = (
+    [o.strip() for o in _cors_raw.split(",") if o.strip()]
+    if _cors_raw != "*"
+    else ["*"]
+)
+
+_API_KEY_ENV = os.environ.get("API_KEY", "").strip()
+_HOSTED_MODE = os.environ.get("HOSTED_MODE", "").lower() in ("true", "1", "yes")
+_API_RATE_LIMIT_ENV = os.environ.get("API_RATE_LIMIT", "").strip()
+# Explicit API_RATE_LIMIT always wins; fall back to 5/hour when public-facing, else unlimited.
+_RATE_LIMIT = _API_RATE_LIMIT_ENV or ("5/hour" if _HOSTED_MODE else "")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # App
@@ -44,13 +78,77 @@ app = FastAPI(
     contact={"name": "Nima Shafie", "url": "https://github.com/NimaShafie"},
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Middleware: CORS
+# ─────────────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Middleware: security headers
+# ─────────────────────────────────────────────────────────────────────────────
+class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(_SecurityHeadersMiddleware)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rate limiting (slowapi — optional dep, gates behind API_RATE_LIMIT env var)
+# ─────────────────────────────────────────────────────────────────────────────
+_limiter = None
+if _RATE_LIMIT:
+    try:
+        from slowapi import Limiter, _rate_limit_exceeded_handler
+        from slowapi.util import get_remote_address
+        from slowapi.errors import RateLimitExceeded
+        _limiter = Limiter(key_func=get_remote_address)
+        app.state.limiter = _limiter
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    except ImportError:
+        _logger.warning(
+            "API_RATE_LIMIT is set but 'slowapi' is not installed. "
+            "Rate limiting is disabled. Install it: pip install slowapi"
+        )
+
+
+def _rate_limit(limit_str: str):
+    """Decorator factory — applies slowapi limit when configured, no-op otherwise."""
+    def decorator(func):
+        if _limiter:
+            return _limiter.limit(limit_str)(func)
+        return func
+    return decorator
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Auth: optional API key
+# ─────────────────────────────────────────────────────────────────────────────
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+def _verify_api_key(key: str | None = Security(_api_key_header)) -> None:
+    """No-op when API_KEY env var is unset (personal/local use). Enforces key when set."""
+    if not _API_KEY_ENV:
+        return
+    if key != _API_KEY_ENV:
+        raise HTTPException(status_code=403, detail="Invalid or missing API key.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Metadata
+# ─────────────────────────────────────────────────────────────────────────────
 QUESTION_TYPES = ["Multiple Choice", "True/False", "Fill in the Blanks"]
 DIFFICULTIES = list(DIFFICULTY_PROFILES.keys())
 
@@ -129,6 +227,7 @@ class HealthResponse(BaseModel):
     response_model=HealthResponse,
     summary="LLM backend health check",
     tags=["Status"],
+    dependencies=[Depends(_verify_api_key)],
 )
 def health():
     """Check whether the configured LLM backend is reachable and the model is available."""
@@ -163,6 +262,7 @@ def health():
                 detail="" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
             )
     except Exception as e:
+        _logger.exception("Health check failed")
         target = cfg.get("base_url") or cfg.get("host", "")
         return HealthResponse(status="error", backend=cfg["type"], backend_url=target, detail=str(e))
 
@@ -171,6 +271,7 @@ def health():
     "/api/v1/models",
     summary="List available models from the LLM backend",
     tags=["Status"],
+    dependencies=[Depends(_verify_api_key)],
 )
 def list_models():
     """Return models available on the backend (Ollama: pulled models; OpenAI-compatible: /v1/models list)."""
@@ -188,9 +289,9 @@ def list_models():
             resp = _requests.get(f"{host}/api/tags", timeout=3)
             resp.raise_for_status()
             return {"backend": "ollama", "models": [m.get("name") for m in resp.json().get("models", [])]}
-    except Exception as e:
-        target = cfg.get("base_url") or cfg.get("host", "")
-        raise HTTPException(status_code=503, detail=f"Cannot reach LLM backend at {target}: {e}")
+    except Exception:
+        _logger.exception("list_models failed")
+        raise HTTPException(status_code=503, detail="LLM backend is unavailable. Check server logs.")
 
 
 @app.get(
@@ -223,8 +324,10 @@ def difficulties():
     response_model=GenerateResponse,
     summary="Generate a quiz",
     tags=["Quiz"],
+    dependencies=[Depends(_verify_api_key)],
 )
-def generate(req: GenerateRequest):
+@_rate_limit(_RATE_LIMIT or "9999/second")
+def generate(req: GenerateRequest, request: Request):
     """
     Generate an AI-powered quiz from a topic or text passage.
 
@@ -238,7 +341,8 @@ def generate(req: GenerateRequest):
         question_types=req.question_types,
     )
     if result.get("error"):
-        raise HTTPException(status_code=502, detail=result["error"])
+        _logger.warning("generate_quiz returned error: %s", result["error"])
+        raise HTTPException(status_code=502, detail="Quiz generation failed. Check that your LLM backend is running.")
     if not result.get("quiz"):
         raise HTTPException(
             status_code=502,
@@ -257,7 +361,14 @@ def generate(req: GenerateRequest):
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, app_dir=os.path.dirname(__file__))
+    _reload = os.environ.get("UVICORN_RELOAD", "false").lower() in ("true", "1", "yes")
+    uvicorn.run(
+        "api:app",
+        host=os.environ.get("API_HOST", "0.0.0.0"),
+        port=int(os.environ.get("API_PORT", "8000")),
+        reload=_reload,
+        app_dir=os.path.dirname(__file__),
+    )
 
 
 if __name__ == "__main__":

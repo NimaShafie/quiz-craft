@@ -265,13 +265,38 @@ quiz-craft/
 
 ---
 
-## Security (Hosted Mode)
+## Security & Hosting
 
-- **Rate limiting:** 5 quizzes/hour per IP, 15s cooldown between requests
-- **Prompt injection protection:** 20+ abuse patterns stripped before LLM call
-- **Input caps:** 2000 character prompt limit, minimum 2 words required
-- **Ollama port** (11434) is internal to Docker network — not exposed publicly
-- **Cloudflare Tunnel** — no open ports on the host machine
+### Personal / local use (default)
+
+QuizCraft is designed primarily for personal, local use. All security features are **off by default** so there is nothing to configure for a self-hosted single-user setup.
+
+Built-in protections that are always active:
+- **Prompt injection filtering** — 20+ abuse patterns stripped before the LLM call
+- **Input caps** — 2000-character prompt limit in hosted mode, 3500 locally; 10 MB file upload cap
+- **SSRF guard** — cloud metadata endpoints (169.254.169.254) blocked in LLM backend URL
+- **Retry logic** — transient LLM connection failures retried with exponential backoff
+- **Log rotation** — app logs rotate at 10 MB (5 backups) so the log file never grows unbounded
+
+### Public hosting checklist
+
+> **Use at your own risk.** QuizCraft is provided as-is with no warranty for public deployments. If you expose it to the internet, follow the steps below.
+
+Set these environment variables (see `deployment/.env.example`):
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `API_KEY` | Protect all REST API endpoints with a bearer token | `API_KEY=my-secret-key` |
+| `CORS_ORIGINS` | Restrict REST API to known origins | `CORS_ORIGINS=https://yourdomain.com` |
+| `API_RATE_LIMIT` | Rate-limit the REST API | `API_RATE_LIMIT=10/hour` |
+| `HOSTED_MODE=true` | Enable Streamlit-side rate limiting (5 quizzes/hour per IP) | |
+| `TRUSTED_PROXY=true` | Trust `X-Forwarded-For` (only when behind nginx/Cloudflare) | |
+
+Additional recommendations:
+- **HTTPS** — terminate TLS at a reverse proxy (nginx, Caddy, Cloudflare Tunnel). Never expose plain HTTP.
+- **Do not expose Ollama port 11434** to the public internet — it has no auth.
+- **Separate the API service** — run `quizcraft-api` behind auth if you expose the REST API.
+- Regularly run `pip-audit` or `pip install safety && safety check` to scan for vulnerable deps.
 
 ---
 

@@ -1,6 +1,9 @@
 # QuizCraft — Docker Compose
 # Version 1 (self-hosted): docker compose --profile dev up
 # Version 2 (hosted):      docker compose --profile hosted up
+#
+# Configuration: copy deployment/.env.example to deployment/.env and edit.
+# If deployment/.env is absent, the environment: defaults below are used.
 
 services:
 
@@ -13,11 +16,25 @@ services:
     profiles: ["dev"]
     ports:
       - "8501:8501"
+    env_file:
+      - path: deployment/.env
+        required: false   # falls back to environment: block if file is absent
     environment:
-      - OLLAMA_HOST=http://10.0.0.12:11434
-      - OLLAMA_MODEL=qwen3:4b
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b}
+      - HOSTED_MODE=false
     command: streamlit run src/quiz_craft.py --server.port=8501 --server.address=0.0.0.0
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - quizcraft_net
 
@@ -31,12 +48,30 @@ services:
       - hosted
     ports:
       - "8502:8502"
+    env_file:
+      - path: deployment/.env
+        required: false
     environment:
-      - OLLAMA_HOST=http://10.0.0.12:11434
-      - OLLAMA_MODEL=qwen3:4b
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b}
       - HOSTED_MODE=true
+      # Uncomment and set these for a secure public deployment:
+      # - API_KEY=${API_KEY}
+      # - CORS_ORIGINS=${CORS_ORIGINS}
+      # - API_RATE_LIMIT=${API_RATE_LIMIT:-10/hour}
+      # - TRUSTED_PROXY=true
     command: streamlit run src/quiz_craft.py --server.port=8502 --server.address=0.0.0.0
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8502/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     networks:
       - quizcraft_net
 

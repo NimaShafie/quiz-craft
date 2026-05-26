@@ -18,15 +18,14 @@ Security env vars (all optional — safe defaults for personal/local use):
     API_PORT         — port to bind (default: 8000)
 """
 
-import sys
-import os
 import logging
+import os
+import sys
+from typing import Literal
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import requests as _requests
-from typing import Literal
-
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
@@ -34,7 +33,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from generate_quiz_from_prompt import generate_quiz, get_backend_config, DIFFICULTY_PROFILES
+from generate_quiz_from_prompt import DIFFICULTY_PROFILES, generate_quiz, get_backend_config
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging
@@ -111,8 +110,8 @@ _limiter = None
 if _RATE_LIMIT:
     try:
         from slowapi import Limiter, _rate_limit_exceeded_handler
-        from slowapi.util import get_remote_address
         from slowapi.errors import RateLimitExceeded
+        from slowapi.util import get_remote_address
         _limiter = Limiter(key_func=get_remote_address)
         app.state.limiter = _limiter
         app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -158,8 +157,10 @@ DIFFICULTIES = list(DIFFICULTY_PROFILES.keys())
 class GenerateRequest(BaseModel):
     topic: str = Field(
         ...,
-        description="Topic or text to generate questions about. "
-                    "Can be a keyword ('World War II'), a sentence, or a full passage pasted from a document.",
+        description=(
+            "Topic or text to generate questions about. "
+            "Can be a keyword ('World War II'), a sentence, or a full passage pasted from a document."
+        ),
         min_length=2,
         max_length=3000,
         examples=["World War II causes and effects"],
@@ -205,7 +206,9 @@ class QuizQuestion(BaseModel):
 class GenerateResponse(BaseModel):
     topic: str
     difficulty: str
-    n_questions: int = Field(description="Actual number of questions returned (may differ from requested).")
+    n_questions: int = Field(
+        description="Actual number of questions returned (may differ from requested)."
+    )
     quiz: list[QuizQuestion]
 
 
@@ -259,12 +262,16 @@ def health():
                 status="ok" if model_available else "degraded",
                 backend="ollama", backend_url=host,
                 model=model, model_available=model_available, available_models=pulled,
-                detail="" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
+                detail=(
+                    "" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}"
+                ),
             )
     except Exception as e:
         _logger.exception("Health check failed")
         target = cfg.get("base_url") or cfg.get("host", "")
-        return HealthResponse(status="error", backend=cfg["type"], backend_url=target, detail=str(e))
+        return HealthResponse(
+            status="error", backend=cfg["type"], backend_url=target, detail=str(e)
+        )
 
 
 @app.get(

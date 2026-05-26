@@ -100,6 +100,14 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 
+[tool.ruff.lint.per-file-ignores]
+# These files insert sys.path / mock sys.modules between import blocks so that
+# local src/ modules resolve before pytest runs.  isort (I001) cannot understand
+# that the interleaving is intentional; suppress it here rather than scatter
+# noqa comments throughout every test file and api.py.
+"src/api.py" = ["I001"]
+"tests/*.py" = ["I001"]
+
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true

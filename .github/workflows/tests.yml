@@ -35,4 +35,6 @@ jobs:
             fastapi uvicorn pydantic \
             starlette
       - name: Run tests with coverage
-        run: python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=60
+        # fail-under threshold is owned by [tool.coverage.report] in pyproject.toml —
+        # do not duplicate it here; the CLI flag would silently override pyproject.toml
+        run: python -m pytest tests/ -v --cov=src --cov-report=term-missing

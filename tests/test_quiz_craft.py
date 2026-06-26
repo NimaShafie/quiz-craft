@@ -5,14 +5,15 @@ Author: Nima Shafie
 Run with: python -m pytest tests/test_quiz_craft.py -v
 """
 
-import sys, os, json
+import sys
+import os
+import json
 from unittest.mock import MagicMock
 
 # Mock streamlit and fpdf before any imports — CI has no display
 sys.modules["streamlit"] = MagicMock()
 sys.modules["fpdf"] = MagicMock()
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -151,7 +152,7 @@ class TestDifficultyProfiles:
             assert level in DIFFICULTY_PROFILES
 
     def test_temperatures_ascending(self):
-        temps = [DIFFICULTY_PROFILES[l]["temperature"] for l in ("Easy", "Medium", "Hard")]
+        temps = [DIFFICULTY_PROFILES[lvl]["temperature"] for lvl in ("Easy", "Medium", "Hard")]
         assert temps[0] < temps[1] < temps[2]
 
     def test_descriptions_present(self):

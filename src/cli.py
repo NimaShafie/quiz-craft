@@ -8,9 +8,9 @@ Usage:
     echo "Photosynthesis" | quizcraft --topic -   # read topic from stdin
 """
 
-import sys
-import os
 import json
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,8 +23,10 @@ except ImportError:
     )
 
 from typing import Optional
+
 from typing_extensions import Annotated
-from generate_quiz_from_prompt import generate_quiz, DIFFICULTY_PROFILES
+
+from generate_quiz_from_prompt import DIFFICULTY_PROFILES, generate_quiz
 
 app = typer.Typer(
     name="quizcraft",
@@ -50,12 +52,36 @@ def _parse_types(types_str: str) -> list[str]:
 
 @app.command()
 def main(
-    topic: Annotated[str, typer.Option("--topic", "-t", help="Topic or text to generate questions about. Use '-' to read from stdin.")] = "",
-    n_questions: Annotated[int, typer.Option("--n-questions", "-n", min=1, max=40, help="Number of questions.")] = 5,
-    difficulty: Annotated[str, typer.Option("--difficulty", "-d", help=f"Difficulty: {', '.join(_VALID_DIFFICULTIES)}")] = "Medium",
-    types: Annotated[str, typer.Option("--types", help="Comma-separated question types.")] = "Multiple Choice",
-    output: Annotated[str, typer.Option("--output", "-o", help="Output format: json (default), txt, pdf")] = "json",
-    output_file: Annotated[Optional[str], typer.Option("--output-file", "-f", help="Write output to file instead of stdout.")] = None,
+    topic: Annotated[
+        str,
+        typer.Option(
+            "--topic", "-t",
+            help="Topic or text to generate questions about. Use '-' to read from stdin.",
+        ),
+    ] = "",
+    n_questions: Annotated[
+        int,
+        typer.Option("--n-questions", "-n", min=1, max=40, help="Number of questions."),
+    ] = 5,
+    difficulty: Annotated[
+        str,
+        typer.Option(
+            "--difficulty", "-d",
+            help=f"Difficulty: {', '.join(_VALID_DIFFICULTIES)}",
+        ),
+    ] = "Medium",
+    types: Annotated[
+        str,
+        typer.Option("--types", help="Comma-separated question types."),
+    ] = "Multiple Choice",
+    output: Annotated[
+        str,
+        typer.Option("--output", "-o", help="Output format: json (default), txt, pdf"),
+    ] = "json",
+    output_file: Annotated[
+        Optional[str],
+        typer.Option("--output-file", "-f", help="Write output to file instead of stdout."),
+    ] = None,
 ):
     """Generate a quiz from a topic or text passage."""
     # Validate difficulty
@@ -78,8 +104,9 @@ def main(
 
     question_types = _parse_types(types)
 
+    topic_preview = f"{topic[:60]}{'...' if len(topic) > 60 else ''}"
     typer.echo(
-        f"Generating {n_questions} {difficulty} question(s) on '{topic[:60]}{'...' if len(topic) > 60 else ''}' ...",
+        f"Generating {n_questions} {difficulty} question(s) on '{topic_preview}' ...",
         err=True,
     )
 

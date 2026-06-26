@@ -7,20 +7,23 @@ Rewritten: 2026 — Fixed difficulty enforcement, prompt injection hardening,
            JSON robustness, and subprocess stdout isolation.
 
 Usage (CLI):
-    python generate_quiz_from_prompt.py <n_questions> <difficulty> <user_prompt> <question_types_csv>
+    python generate_quiz_from_prompt.py \
+        <n_questions> <difficulty> <user_prompt> <question_types_csv>
 
 Returns: JSON to stdout (only the JSON block, nothing else)
 """
 
-import json
-import sys
-import re
-import os
-import time
-import logging
 import ipaddress
-import requests
+import json
+import logging
+import os
+import re
+import sys
+import time
+from typing import Any, cast
 from urllib.parse import urlparse
+
+import requests
 
 _logger = logging.getLogger("quizcraft.core")
 
@@ -65,12 +68,12 @@ def get_ollama_config():
             if not host:
                 host = cfg.get("OLLAMA_DETAILS", "ollama_host", fallback="http://localhost:11434").rstrip("/")
             if not model:
-                model = cfg.get("OLLAMA_DETAILS", "model_name", fallback="gemma3:4b")
+                model = cfg.get("OLLAMA_DETAILS", "model_name", fallback="qwen3:4b")
         except Exception:
             if not host:
                 host = "http://localhost:11434"
             if not model:
-                model = "gemma3:4b"
+                model = "qwen3:4b"
     return host, model
 
 
@@ -170,14 +173,18 @@ def check_llm_health(cfg: dict | None = None) -> dict:
             "backend": "ollama", "backend_url": host,
             "model": model, "model_available": model_available,
             "available_models": pulled,
-            "detail": "" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}",
+            "detail": (
+                "" if model_available
+                else f"Model '{model}' not pulled. Run: ollama pull {model}"
+            ),
         }
     except requests.exceptions.ConnectionError:
         target = cfg.get("base_url") or cfg.get("host", "https://api.anthropic.com")
         return {
             "status": "error", "backend": cfg.get("type", "unknown"), "backend_url": target,
             "model": cfg.get("model", ""), "model_available": False,
-            "available_models": [], "detail": f"Cannot reach LLM backend at {target}. Is it running?",
+            "available_models": [],
+            "detail": f"Cannot reach LLM backend at {target}. Is it running?",
         }
     except Exception as e:
         target = cfg.get("base_url") or cfg.get("host", "")
@@ -312,11 +319,13 @@ def call_ollama(prompt, model, host, temperature):
     return resp.json().get("response", "")
 
 
-def call_openai_compatible(prompt: str, base_url: str, api_key: str, model: str, temperature: float) -> str:
+def call_openai_compatible(
+    prompt: str, base_url: str, api_key: str, model: str, temperature: float
+) -> str:
     """Call any OpenAI-compatible /v1/chat/completions endpoint."""
     url = f"{base_url}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    payload = {
+    payload: dict[str, Any] = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
@@ -350,7 +359,10 @@ def call_anthropic(prompt: str, api_key: str, model: str, temperature: float) ->
         temperature=temperature,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text
+    block = message.content[0]
+    # The Messages API returns a union of content-block types; only TextBlock
+    # carries `.text`. For a plain text completion this is always a TextBlock.
+    return block.text if isinstance(block, anthropic.types.TextBlock) else ""
 
 
 def extract_quiz_json(raw):
@@ -393,8 +405,9 @@ def normalize_question(q):
         return None
     question = str(q.get("question", "")).strip()
     raw_type_key = q.get("type", "").strip().lower()
-    normalized_type = TYPE_ALIASES.get(raw_type_key, None) or \
-                      TYPE_ALIASES.get(raw_type_key.replace(" ", "").replace("-", ""), "Multiple Choice")
+    normalized_type = TYPE_ALIASES.get(raw_type_key, None) or TYPE_ALIASES.get(
+        raw_type_key.replace(" ", "").replace("-", ""), "Multiple Choice"
+    )
     options = q.get("options", [])
     answer = str(q.get("answer", "")).strip()
 
@@ -437,6 +450,7 @@ def generate_quiz(
 
     cfg = get_backend_config()
     profile = DIFFICULTY_PROFILES.get(difficulty, DIFFICULTY_PROFILES["Medium"])
+    temperature = cast(float, profile["temperature"])
     prompt = build_prompt(number_of_questions, difficulty, safe_prompt, question_types)
 
     # Emit progress markers to stderr when called as a subprocess by Streamlit.
@@ -450,17 +464,20 @@ def generate_quiz(
         try:
             if cfg["type"] == "openai":
                 raw = call_openai_compatible(
-                    prompt, cfg["base_url"], cfg["api_key"], cfg["model"], profile["temperature"]
+                    prompt, cfg["base_url"], cfg["api_key"], cfg["model"], temperature
                 )
             elif cfg["type"] == "anthropic":
-                raw = call_anthropic(prompt, cfg["api_key"], cfg["model"], profile["temperature"])
+                raw = call_anthropic(prompt, cfg["api_key"], cfg["model"], temperature)
             else:
-                raw = call_ollama(prompt, cfg["model"], cfg["host"], profile["temperature"])
+                raw = call_ollama(prompt, cfg["model"], cfg["host"], temperature)
             break  # success
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             if attempt < max_retries:
                 wait = 2 ** attempt  # 2s, 4s
-                _logger.warning("LLM call failed (attempt %d/%d), retrying in %ds: %s", attempt, max_retries, wait, e)
+                _logger.warning(
+                    "LLM call failed (attempt %d/%d), retrying in %ds: %s",
+                    attempt, max_retries, wait, e,
+                )
                 time.sleep(wait)
                 continue
             target = cfg.get("base_url") or cfg.get("host", "")

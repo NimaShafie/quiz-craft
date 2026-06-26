@@ -13,24 +13,24 @@
 requests>=2.34.2
 
 # PDF generation (quiz export)
-fpdf2>=2.7.9
+fpdf2>=2.8.7
 
 # PDF reading (file upload feature)
-pypdf>=6.12.1
+pypdf>=6.14.2
 
 # ── Web UI (streamlit run src/quiz_craft.py) ─────────────────────────────────
-streamlit>=1.57.0
+streamlit>=1.58.0
 
 # ── REST API (python src/api.py  or  uvicorn api:app --app-dir src) ──────────
 # pip install fastapi "uvicorn[standard]"
-# fastapi>=0.115.0
-# uvicorn[standard]>=0.30.0
+# fastapi>=0.138.1
+# uvicorn[standard]>=0.49.0
 
 # ── MCP Server (python src/mcp_server.py) ────────────────────────────────────
 # pip install mcp
-# mcp>=1.0.0
+# mcp>=1.28.1
 
 # ── Dev / testing ─────────────────────────────────────────────────────────────
 # pip install pytest httpx
-# pytest>=8.0.0
-# httpx>=0.27.0   # FastAPI test client
+# pytest>=9.1.1
+# httpx>=0.28.1   # FastAPI test client

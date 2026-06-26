@@ -8,7 +8,6 @@ Run with: python -m pytest tests/test_api.py -v
 
 import sys
 import os
-import json
 from unittest.mock import MagicMock, patch
 
 # Mock streamlit and fpdf before any imports
@@ -190,7 +189,8 @@ class TestGenerate:
 
     def test_whitespace_only_topic_returns_error(self, client):
         # "  " has length 2 so passes Pydantic min_length; generate_quiz rejects it as empty.
-        with patch("api.generate_quiz", return_value={"quiz": [], "error": "Empty or invalid prompt after sanitization."}):
+        mock_result = {"quiz": [], "error": "Empty or invalid prompt after sanitization."}
+        with patch("api.generate_quiz", return_value=mock_result):
             resp = client.post("/api/v1/quiz/generate", json={**self._payload, "topic": "  "})
         assert resp.status_code == 502
 

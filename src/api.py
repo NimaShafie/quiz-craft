@@ -114,7 +114,9 @@ if _RATE_LIMIT:
         from slowapi.util import get_remote_address
         _limiter = Limiter(key_func=get_remote_address)
         app.state.limiter = _limiter
-        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        # slowapi's handler is typed for RateLimitExceeded; Starlette expects an
+        # Exception-typed handler. This is the documented slowapi wiring.
+        app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
     except ImportError:
         _logger.warning(
             "API_RATE_LIMIT is set but 'slowapi' is not installed. "
@@ -159,7 +161,8 @@ class GenerateRequest(BaseModel):
         ...,
         description=(
             "Topic or text to generate questions about. "
-            "Can be a keyword ('World War II'), a sentence, or a full passage pasted from a document."
+            "Can be a keyword ('World War II'), a sentence, or a full "
+            "passage pasted from a document."
         ),
         min_length=2,
         max_length=3000,
@@ -263,7 +266,9 @@ def health():
                 backend="ollama", backend_url=host,
                 model=model, model_available=model_available, available_models=pulled,
                 detail=(
-                    "" if model_available else f"Model '{model}' not pulled. Run: ollama pull {model}"
+                    ""
+                    if model_available
+                    else f"Model '{model}' not pulled. Run: ollama pull {model}"
                 ),
             )
     except Exception as e:
@@ -281,7 +286,11 @@ def health():
     dependencies=[Depends(_verify_api_key)],
 )
 def list_models():
-    """Return models available on the backend (Ollama: pulled models; OpenAI-compatible: /v1/models list)."""
+    """Return models available on the backend.
+
+    Ollama reports pulled models; OpenAI-compatible backends return their
+    /v1/models list.
+    """
     cfg = get_backend_config()
     try:
         if cfg["type"] == "openai":
@@ -295,10 +304,13 @@ def list_models():
             host = cfg["host"]
             resp = _requests.get(f"{host}/api/tags", timeout=3)
             resp.raise_for_status()
-            return {"backend": "ollama", "models": [m.get("name") for m in resp.json().get("models", [])]}
+            models = [m.get("name") for m in resp.json().get("models", [])]
+            return {"backend": "ollama", "models": models}
     except Exception:
         _logger.exception("list_models failed")
-        raise HTTPException(status_code=503, detail="LLM backend is unavailable. Check server logs.")
+        raise HTTPException(
+            status_code=503, detail="LLM backend is unavailable. Check server logs."
+        )
 
 
 @app.get(
@@ -339,7 +351,8 @@ def generate(req: GenerateRequest, request: Request):
     Generate an AI-powered quiz from a topic or text passage.
 
     The LLM runs via your configured backend (Ollama, LM Studio, Groq, etc.).
-    Local models typically take 15–60 seconds on CPU. Cloud backends (Groq, OpenRouter) respond in seconds.
+    Local models typically take 15–60 seconds on CPU. Cloud backends
+    (Groq, OpenRouter) respond in seconds.
     """
     result = generate_quiz(
         number_of_questions=req.n_questions,
@@ -349,11 +362,17 @@ def generate(req: GenerateRequest, request: Request):
     )
     if result.get("error"):
         _logger.warning("generate_quiz returned error: %s", result["error"])
-        raise HTTPException(status_code=502, detail="Quiz generation failed. Check that your LLM backend is running.")
+        raise HTTPException(
+            status_code=502,
+            detail="Quiz generation failed. Check that your LLM backend is running.",
+        )
     if not result.get("quiz"):
         raise HTTPException(
             status_code=502,
-            detail="Model returned an empty quiz. Try a different topic or check your LLM backend setup.",
+            detail=(
+                "Model returned an empty quiz. Try a different topic "
+                "or check your LLM backend setup."
+            ),
         )
     return GenerateResponse(
         topic=req.topic[:80],
@@ -371,7 +390,9 @@ def main():
     _reload = os.environ.get("UVICORN_RELOAD", "false").lower() in ("true", "1", "yes")
     uvicorn.run(
         "api:app",
-        host=os.environ.get("API_HOST", "0.0.0.0"),
+        # Bind all interfaces by default so the server is reachable inside a
+        # container; override with API_HOST=127.0.0.1 for local-only access.
+        host=os.environ.get("API_HOST", "0.0.0.0"),  # nosec B104
         port=int(os.environ.get("API_PORT", "8000")),
         reload=_reload,
         app_dir=os.path.dirname(__file__),

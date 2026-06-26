@@ -8,21 +8,27 @@ Usage:
     HOSTED_MODE=true streamlit run src/quiz_craft.py
 """
 
-import json
-import sys
-import re
-import os
-import time
-import subprocess
+import base64
 import hashlib
+import json
 import logging
+import os
+import re
+import subprocess
+import sys
+import time
 import traceback
+from dataclasses import dataclass, field
+from logging.handlers import RotatingFileHandler
+
 import requests
 import streamlit as st
-from logging.handlers import RotatingFileHandler
 from fpdf import FPDF
-from dataclasses import dataclass, field
-from generate_quiz_from_prompt import _INJECTION_PATTERNS, get_ollama_config, get_backend_config  # single source of truth
+
+from generate_quiz_from_prompt import (  # single source of truth
+    _INJECTION_PATTERNS,
+    get_backend_config,
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Mode + Config
@@ -365,11 +371,14 @@ label, [data-testid="stWidgetLabel"] p {
 # ─────────────────────────────────────────────────────────────────────────────
 # Inject theme + logo
 # ─────────────────────────────────────────────────────────────────────────────
-import base64 as _b64
 if os.path.exists(LOGO_PATH):
     with open(LOGO_PATH, "rb") as _f:
-        _logo_data = _b64.b64encode(_f.read()).decode()
-    st.html(_THEME_CSS + '<div id="qc-logo-wrap"><img id="qc-logo" src="data:image/png;base64,' + _logo_data + '" /></div>')
+        _logo_data = base64.b64encode(_f.read()).decode()
+    st.html(
+        _THEME_CSS
+        + '<div id="qc-logo-wrap"><img id="qc-logo" '
+        + f'src="data:image/png;base64,{_logo_data}" /></div>'
+    )
 else:
     st.html(_THEME_CSS)
 
@@ -437,8 +446,10 @@ def _get_client_ip() -> str:
         return "unknown"
 
 def check_rate_limit() -> tuple:
-    if not HOSTED_MODE: return True, ""
-    ip = _get_client_ip(); now = time.time()
+    if not HOSTED_MODE:
+        return True, ""
+    ip = _get_client_ip()
+    now = time.time()
     # Evict fully-expired entries when store grows large (prevent unbounded memory growth).
     if len(_ip_store) > _MAX_IP_STORE_SIZE:
         stale = [
@@ -447,7 +458,8 @@ def check_rate_limit() -> tuple:
         ]
         for k in stale:
             del _ip_store[k]
-    if ip not in _ip_store: _ip_store[ip] = _IPRecord()
+    if ip not in _ip_store:
+        _ip_store[ip] = _IPRecord()
     record = _ip_store[ip]
     elapsed = now - record.last_request
     if record.last_request > 0 and elapsed < COOLDOWN_SEC:
@@ -456,30 +468,43 @@ def check_rate_limit() -> tuple:
     if len(record.timestamps) >= RATE_LIMIT_REQUESTS:
         oldest = record.timestamps[0]
         reset_in = int(RATE_LIMIT_WINDOW_SEC - (now - oldest))
-        return False, f"Rate limit reached ({RATE_LIMIT_REQUESTS} quizzes/hour). Resets in {reset_in // 60}m {reset_in % 60}s."
+        return False, (
+            f"Rate limit reached ({RATE_LIMIT_REQUESTS} quizzes/hour). "
+            f"Resets in {reset_in // 60}m {reset_in % 60}s."
+        )
     return True, ""
 
 def record_request():
-    if not HOSTED_MODE: return
-    ip = _get_client_ip(); now = time.time()
-    if ip not in _ip_store: _ip_store[ip] = _IPRecord()
+    if not HOSTED_MODE:
+        return
+    ip = _get_client_ip()
+    now = time.time()
+    if ip not in _ip_store:
+        _ip_store[ip] = _IPRecord()
     _ip_store[ip].timestamps.append(now)
     _ip_store[ip].last_request = now
 
 def get_remaining_quota() -> tuple:
-    if not HOSTED_MODE: return 0, 0
-    ip = _get_client_ip(); now = time.time()
-    if ip not in _ip_store: return 0, RATE_LIMIT_REQUESTS
+    if not HOSTED_MODE:
+        return 0, 0
+    ip = _get_client_ip()
+    now = time.time()
+    if ip not in _ip_store:
+        return 0, RATE_LIMIT_REQUESTS
     used = len([t for t in _ip_store[ip].timestamps if now - t < RATE_LIMIT_WINDOW_SEC])
     return used, RATE_LIMIT_REQUESTS
 
 def validate_input(text: str) -> tuple:
     text = text.strip()
-    if not text: return False, "", "Please enter a topic or paste some text."
+    if not text:
+        return False, "", "Please enter a topic or paste some text."
     if HOSTED_MODE:
         text = text[:MAX_PROMPT_CHARS]
         if _INJECTION_PATTERNS.search(text):
-            return False, "", "Your input contains phrases that look like attempts to misuse the AI. Please enter a genuine quiz topic."
+            return False, "", (
+                "Your input contains phrases that look like attempts to misuse "
+                "the AI. Please enter a genuine quiz topic."
+            )
         if len(text.split()) < 2:
             return False, text, "Please enter a more descriptive topic (at least 2 words)."
     return True, text, ""
@@ -514,8 +539,9 @@ def extract_text_from_file(uploaded_file) -> str:
         return raw.decode("utf-8", errors="replace")[:MAX_PROMPT_CHARS]
     elif uploaded_file.type == "application/pdf":
         try:
-            from pypdf import PdfReader
             import io
+
+            from pypdf import PdfReader
             reader = PdfReader(io.BytesIO(raw))
             return " ".join(page.extract_text() or "" for page in reader.pages)[:MAX_PROMPT_CHARS]
         except Exception as e:
@@ -634,6 +660,7 @@ def _load_pdf_fonts(pdf: "FPDF") -> str:
 
 def generate_quiz_pdf(quiz_data: dict, topic: str = "") -> bytes:
     import datetime
+
     from fpdf.enums import XPos, YPos
 
     pdf = FPDF()
@@ -910,7 +937,7 @@ if st.session_state.quiz_generated and st.session_state.quiz_data:
             # Use a data URI so the browser never makes an HTTP request for the
             # file — this avoids Brave/Chrome "insecure download" blocks that
             # trigger when downloading binary files over plain HTTP.
-            pdf_b64 = _b64.b64encode(pdf_bytes).decode()
+            pdf_b64 = base64.b64encode(pdf_bytes).decode()
             st.markdown(
                 f'<a href="data:application/pdf;base64,{pdf_b64}" download="quiz.pdf"'
                 f' style="display:inline-flex;align-items:center;justify-content:center;'

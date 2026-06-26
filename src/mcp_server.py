@@ -22,25 +22,27 @@ Requirements:
     pip install mcp>=1.0.0
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import json
+
 import requests
 from mcp.server.fastmcp import FastMCP
 
-from generate_quiz_from_prompt import generate_quiz, get_backend_config, DIFFICULTY_PROFILES
+from generate_quiz_from_prompt import DIFFICULTY_PROFILES, generate_quiz, get_backend_config
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Server
 # ─────────────────────────────────────────────────────────────────────────────
 mcp = FastMCP(
     "QuizCraft",
-    description=(
+    instructions=(
         "Generate AI-powered quizzes from any topic or text. "
-        "Works with Ollama (local), LM Studio, Groq, OpenRouter, Together.ai, or any OpenAI-compatible LLM. "
+        "Works with Ollama (local), LM Studio, Groq, OpenRouter, "
+        "Together.ai, or any OpenAI-compatible LLM. "
         "Source: https://github.com/NimaShafie/quiz-craft"
     ),
 )

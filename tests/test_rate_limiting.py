@@ -43,7 +43,6 @@ sys.modules["fpdf"] = MagicMock()
 # Do NOT mock sys.modules["requests"] globally — it contaminates other test modules.
 # requests.get is patched locally inside _load_module() instead.
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -217,7 +216,8 @@ class TestTimestampCleanup:
         ip = hashlib.sha256("s-old".encode()).hexdigest()[:16]
         qc._ip_store[ip] = qc._IPRecord()
         # All timestamps are older than the window
-        qc._ip_store[ip].timestamps = [time.time() - qc.RATE_LIMIT_WINDOW_SEC - 10] * qc.RATE_LIMIT_REQUESTS
+        expired = time.time() - qc.RATE_LIMIT_WINDOW_SEC - 10
+        qc._ip_store[ip].timestamps = [expired] * qc.RATE_LIMIT_REQUESTS
         _streamlit_mock.runtime.scriptrunner.get_script_run_ctx.return_value = _make_ctx("s-old")
         allowed, _ = qc.check_rate_limit()
         assert allowed is True
@@ -225,7 +225,6 @@ class TestTimestampCleanup:
     def test_stale_ip_entries_evicted_when_store_large(self):
         qc = _load_module(hosted_mode=True)
         # Populate store beyond threshold with fully-expired records.
-        import hashlib
         old_time = time.time() - qc.RATE_LIMIT_WINDOW_SEC - 10
         for i in range(qc._MAX_IP_STORE_SIZE + 5):
             fake_ip = f"fake-ip-{i:05d}"

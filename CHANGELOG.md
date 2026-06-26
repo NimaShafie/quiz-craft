@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Changed
+- Refreshed Ollama model lineup to current library: added `gemma3:27b` and `gpt-oss:20b`
+  to the comparison table, corrected RAM/size estimates, and aligned all fallback defaults
+  to the recommended `qwen3:4b`.
 
 ## [1.0.0] - 2026-04-04
 ### Added

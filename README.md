@@ -52,11 +52,13 @@ ollama pull qwen3:4b
 
 | Model | RAM needed | Notes |
 |---|---|---|
-| `qwen3:4b` | ~3 GB | **Recommended** — fast, strong JSON output |
-| `gemma3:4b` | ~3.3 GB | Good alternative, solid reasoning |
-| `gemma3:12b` | ~8 GB | Higher quality, needs more RAM |
+| `qwen3:4b` | ~3 GB | **Recommended** — fast, strong JSON output, optional thinking mode |
+| `gemma3:4b` | ~4 GB | Good alternative, solid reasoning |
+| `gemma3:12b` | ~9 GB | Higher quality, needs more RAM |
+| `gemma3:27b` | ~18 GB | Best Gemma quality, GPU recommended |
+| `gpt-oss:20b` | ~16 GB | OpenAI open-weight, excellent reasoning (16 GB+ RAM/VRAM) |
 | `qwen2.5:7b` | ~5 GB | Strong instruction following |
-| `llama3.1:8b` | ~6 GB | Well-rounded, reliable |
+| `llama3.1:8b` | ~5 GB | Well-rounded, reliable |
 | `llama3.2:3b` | ~2 GB | Lightest option, lower quality |
 
 > **CPU inference:** Expect 15–60 seconds per generation without a GPU. This is normal for 4B parameter models on CPU. Use a smaller model (`llama3.2:3b`) if speed is more important than quality.
